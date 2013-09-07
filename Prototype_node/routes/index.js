@@ -1,6 +1,13 @@
 /*
  * GET home page.
  */
+var bidModule = require('./modules/Bid');
+var askModule = require("./modules/Ask");
+var matchedTransactionModule = require('./modules/MatchedTransaction');
+
+var exchangeBeanModule = require('./modules/ExchangeBean');
+var exchangeBean = new exchangeBeanModule.ExchangeBean();
+
 exports.index = function(req, res){
 	res.render('index.ejs');
 };
@@ -75,11 +82,8 @@ exports.processBuy = function(req, res) {
 	var stock = req.param('stock');
 	var tempBidPrice = req.param('bidprice');
 	
-	var bidModule = require('./modules/Bid');
 	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
-	
-	//var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
-	var bidIsAccepted = true;
+	var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
 	
 	if (!bidIsAccepted) {
 		res.render('buySuccess.ejs', { 
@@ -115,10 +119,9 @@ exports.processSell = function(req, res) {
 	var stock = req.param('stock');
 	var tempAskPrice = req.param('askprice');
 	
-	var askModules = require("./modules/Ask");
-	var newAsk = new askModules.Ask(stock, tempAskPrice, userId);
+	var newAsk = new askModule.Ask(stock, tempAskPrice, userId);
 	
-	// exchangeBean.placeNewAskAndAttemptMatch(newAsk);
+	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
 	res.render('sellSuccess.ejs', { 
 		userId: userId, 
@@ -137,8 +140,7 @@ exports.logout = function(req,res) {
 };
 
 exports.current = function(req, res) {
-	/*
-	res.render('sellSuccess.ejs', { 
+	res.render('current.ejs', { 
 		smuLatestPrice: exchangeBean.getLatestPrice("smu"),
 		smuHighestBidPrice: exchangeBean.getHighestBidPrice("smu"),
 		smuLowestAskPrice: exchangeBean.getLowestAskPrice("smu"),
@@ -150,26 +152,11 @@ exports.current = function(req, res) {
 		ntuLatestPrice: exchangeBean.getLatestPrice("ntu"),
 		ntuHighestBidPrice: exchangeBean.getHighestBidPrice("ntu"),
 		ntuLowestAskPrice: exchangeBean.getLowestAskPrice("ntu")
-	}
-	*/
-	res.render('current.ejs', { 
-		smuLatestPrice: 20,
-		smuHighestBidPrice: 60,
-		smuLowestAskPrice: 30,
-		
-		nusLatestPrice: 70,
-		nusHighestBidPrice: 80,
-		nusLowestAskPrice: 10,
-		
-		ntuLatestPrice: 30,
-		ntuHighestBidPrice: 50,
-		ntuLowestAskPrice: 30
 	});
 }
 
 exports.viewOrders = function(req, res) {
-	/*
-	res.render('sellSuccess.ejs', { 
+	res.render('viewOrders.ejs', { 
 		smuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("smu"),
 		smuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("smu"),
 		
@@ -177,28 +164,15 @@ exports.viewOrders = function(req, res) {
 		nusUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("nus"),
 		
 		ntuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("ntu"),
-		ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu")
+		ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu"),
 		
 		AllCreditRemainingForDisplay: exchangeBean.getAllCreditRemainingForDisplay()
-	}
-	*/
-	res.render('viewOrders.ejs', { 
-		smuUnfulfilledBidsForDisplay: 20,
-		smuUnfulfilledAsks: 60,
-		
-		nusUnfulfilledBidsForDisplay: 70,
-		nusUnfulfilledAsks: 80,
-		
-		ntuUnfulfilledBidsForDisplay: 30,
-		ntuUnfulfilledAsks: 50,
-		
-		AllCreditRemainingForDisplay: 10200
 	});
 }
 
 exports.endTradingDay = function(req, res) {
-	//exchangeBean.endTradingDay(); // clean up instance variables
-    //session.invalidate(); - clear session
+	exchangeBean.endTradingDay(); // clean up instance variables
+    res.clear();
 	
 	res.render('endTradingDay.ejs');
 }

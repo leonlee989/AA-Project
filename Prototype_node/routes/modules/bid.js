@@ -18,11 +18,18 @@ Bid.prototype.getUserId = function() {
 }
 
 Bid.prototype.getDate = function() {
-	return this.date.getMonth() + 1 + "-" + this.date.getDate() + "-" + this.date.getFullYear();
+	return this.date;
+	//return this.date.getMonth() + 1 + "-" + this.date.getDate() + "-" + this.date.getFullYear();
 }
 
 Bid.prototype.toString = function() {
-	return "stock: " + this.stock + ", price: " + this.price + ", userId: " + this.userId + ", date: " + this.date;
+	var dateString = [[AddZero(this.date.getDate()), AddZero(this.date.getMonth() + 1), this.date.getFullYear()].join("/"), [AddZero(this.date.getHours()), AddZero(this.date.getMinutes())].join(":"), this.date.getHours() >= 12 ? "PM" : "AM"].join(" ");
+	return "stock: " + this.stock + ", price: " + this.price + ", userId: " + this.userId + ", date: " + dateString;
+}
+
+//Pad given value to the left with "0"
+function AddZero(num) {
+    return (num >= 0 && num < 10) ? "0" + num : num + "";
 }
 
 module.exports.Bid = Bid;
