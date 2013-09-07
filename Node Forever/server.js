@@ -9,8 +9,8 @@ http.createServer(function (req, res) {
 
 /* server started */  
 util.puts('> hello world running on port 8000');
-/*
-setTimeout(function () {
+
+/*setTimeout(function () {
   util.puts('Throwing error now.');
   throw new Error('User generated fault.');
 }, 5000);
