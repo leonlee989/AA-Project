@@ -68,30 +68,30 @@ exports.buy = function(req, res) {
 
 exports.processBuy = function(req, res) {
 	var userId = req.session.userId;
-	var authehticatedUser = req.session.authenticatedUser;
+	var authenticatedUser = req.session.authenticatedUser;
 	
 	//req.session.stock = req.param('stock');
 	//req.session.tempBidPrice = req.param('bidprice');
 	var stock = req.param('stock');
 	var tempBidPrice = req.param('bidprice');
 	
-	var module = require('./modules/Bid');
-	var newBid = new module.Bid(stock, tempBidPrice, userId);
+	var bidModule = require('./modules/Bid');
+	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
 	
 	//var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
 	var bidIsAccepted = true;
 	
 	if (!bidIsAccepted) {
 		res.render('buySuccess.ejs', { 
-			userId: req.session.userId, 
-			authenticatedUser: req.session.authenticatedUser,
+			userId: userId, 
+			authenticatedUser: authenticatedUser,
 			stock: stock,
 			bidPrice: tempBidPrice
 		});
 	} else {
 		res.render('buyFail.ejs', { 
-			userId: req.session.userId, 
-			authenticatedUser: req.session.authenticatedUser,
+			userId: userId, 
+			authenticatedUser: authenticatedUser,
 			stock: stock,
 			bidPrice: tempBidPrice
 		});
@@ -105,9 +105,100 @@ exports.sell = function(req, res) {
 	});
 };
 
+exports.processSell = function(req, res) {
+	var userId = req.session.userId;
+	var authenticatedUser = req.session.authenticatedUser;
+	
+	//req.session.stock = req.param('stock');
+	//req.session.tempAskPrice = req.param('askprice');
+	
+	var stock = req.param('stock');
+	var tempAskPrice = req.param('askprice');
+	
+	var askModules = require("./modules/Ask");
+	var newAsk = new askModules.Ask(stock, tempAskPrice, userId);
+	
+	// exchangeBean.placeNewAskAndAttemptMatch(newAsk);
+	
+	res.render('sellSuccess.ejs', { 
+		userId: userId, 
+		authenticatedUser: authenticatedUser,
+		stock: stock,
+		askPrice: tempAskPrice
+	});
+	
+}
+
 exports.logout = function(req,res) {
 	delete req.session.userId;
 	delete req.session.authenticatedUser;
 	
 	res.render('logout.ejs');
 };
+
+exports.current = function(req, res) {
+	/*
+	res.render('sellSuccess.ejs', { 
+		smuLatestPrice: exchangeBean.getLatestPrice("smu"),
+		smuHighestBidPrice: exchangeBean.getHighestBidPrice("smu"),
+		smuLowestAskPrice: exchangeBean.getLowestAskPrice("smu"),
+		
+		nusLatestPrice: exchangeBean.getLatestPrice("nus"),
+		nusHighestBidPrice: exchangeBean.getHighestBidPrice("nus"),
+		nusLowestAskPrice: exchangeBean.getLowestAskPrice("nus"),
+		
+		ntuLatestPrice: exchangeBean.getLatestPrice("ntu"),
+		ntuHighestBidPrice: exchangeBean.getHighestBidPrice("ntu"),
+		ntuLowestAskPrice: exchangeBean.getLowestAskPrice("ntu")
+	}
+	*/
+	res.render('current.ejs', { 
+		smuLatestPrice: 20,
+		smuHighestBidPrice: 60,
+		smuLowestAskPrice: 30,
+		
+		nusLatestPrice: 70,
+		nusHighestBidPrice: 80,
+		nusLowestAskPrice: 10,
+		
+		ntuLatestPrice: 30,
+		ntuHighestBidPrice: 50,
+		ntuLowestAskPrice: 30
+	});
+}
+
+exports.viewOrders = function(req, res) {
+	/*
+	res.render('sellSuccess.ejs', { 
+		smuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("smu"),
+		smuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("smu"),
+		
+		nusUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("nus"),
+		nusUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("nus"),
+		
+		ntuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("ntu"),
+		ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu")
+		
+		AllCreditRemainingForDisplay: exchangeBean.getAllCreditRemainingForDisplay()
+	}
+	*/
+	res.render('viewOrders.ejs', { 
+		smuUnfulfilledBidsForDisplay: 20,
+		smuUnfulfilledAsks: 60,
+		
+		nusUnfulfilledBidsForDisplay: 70,
+		nusUnfulfilledAsks: 80,
+		
+		ntuUnfulfilledBidsForDisplay: 30,
+		ntuUnfulfilledAsks: 50,
+		
+		AllCreditRemainingForDisplay: 10200
+	});
+}
+
+exports.endTradingDay = function(req, res) {
+	//exchangeBean.endTradingDay(); // clean up instance variables
+    //session.invalidate(); - clear session
+	
+	res.render('endTradingDay.ejs');
+}

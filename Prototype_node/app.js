@@ -50,11 +50,14 @@ app.get('/login', routes.login);
 app.get('/logout', routes.logout);
 app.get('/buy', routes.authenUser, routes.buy);
 app.get('/sell', routes.authenUser, routes.sell);
+app.get('/current', routes.current);
+app.get('/viewOrders', routes.viewOrders);
+app.get('/endTradingDay', routes.endTradingDay);
 
 // Operations 
 app.post('/processlogin', routes.processlogin);
 app.post('/processBuy', routes.authenUser, routes.processBuy);
-
+app.post('/processSell', routes.authenUser, routes.processSell);
 
 // Run server
 http.createServer(app).listen(app.get('port'), function(){
