@@ -85,7 +85,7 @@ exports.processBuy = function(req, res) {
 	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
 	var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
 	
-	if (!bidIsAccepted) {
+	if (bidIsAccepted) {
 		res.render('buySuccess.ejs', { 
 			userId: userId, 
 			authenticatedUser: authenticatedUser,

@@ -6,32 +6,32 @@ var fs = require('fs');
 
 function ExchangeBean() {
 	// location of log files - change if necessary
-	var MATCH_LOG_FILE = "c:\\temp\\matched.log";
-	var REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
+	this.MATCH_LOG_FILE = "c:\\temp\\matched.log";
+	this.REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
 
 	// used to calculate remaining credit available for buyers
-	var DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+	this.DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
 
 	// used for keeping track of fulfiling asks and bids in the system
 	// once asks or bid are matched, they must be removed from these arrayllists.
-	var unfulfilledAsks = new Array();
-	var unfulfilledBids = new Array();
+	this.unfulfilledAsks = new Array();
+	this.unfulfilledBids = new Array();
 
 	// used to keep track of all matched transactions (asks/bids) in the system
 	// matchedTransactions is cleaned once the records are written to the log file successfully
-	var matchedTransactions = new Array();
+	this.matchedTransactions = new Array();
 
 	// keeps track of the lastest price for each of the 3 stocks
-	var latestPriceForSmu = -1;
-	var latestPriceForNus = -1;
-	var latestPriceForNtu = -1;
+	this.latestPriceForSmu = -1;
+	this.latestPriceForNus = -1;
+	this.latestPriceForNtu = -1;
 
 	// keeps track of the remaining credit limits of each buyers. This should be
 	// checked every time a buy order is submitted. Buy orders that breach the 
 	// credit limit should be rejected and logged
 	// The key for this Hashtable is the user ID of the buyer, and the corresponding value is the Remaining credit limit
 	// the remaining credit limit should not go below 0 under any circumstance!
-	 var creditRemaining = [];
+	 this.creditRemaining = new Array();
  }
  
  // this method is called once at the end trading day. It can be called manually, or by a timed daemon
@@ -59,7 +59,7 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock) {
 		var bid = this.unfulfilledBids[i];
 		
 		if (bid.getStock() == stock) {
-			returnString = returnString + "<br/>"; 
+			returnString = returnString + bid.toString() + "<br/>"; 
 		}
 	}
 	
@@ -74,7 +74,7 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock) {
 	for (var i = 0; i < this.unfulfilledAsks.length; i++) {
 		var ask = this.unfulfilledAsks[i];
 		if (ask.getStock() == stock) {
-			returnString = returnString + "<br/>";
+			returnString = returnString + ask.toString() + "<br/>";
 		}		
 	}
 	
@@ -85,7 +85,7 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock) {
 // return -1 if there is no bid at all
 ExchangeBean.prototype.getHighestBidPrice = function(stock) {
 	var highestBid = this.getHighestBid(stock);
-	if (highestBid == 'undefined') {
+	if (highestBid === undefined) {
 		return -1;
 	} else {
 		return highestBid.getPrice();
@@ -95,7 +95,7 @@ ExchangeBean.prototype.getHighestBidPrice = function(stock) {
 // retrieve unfulfiled current (highest) bid for a particular stock
 // return null if there is no unfulfiled bid for this stock
 ExchangeBean.prototype.getHighestBid = function(stock) {
-	var highestBid = new bidModule.Bid('undefined', 0, 'undefined');
+	var highestBid = new bidModule.Bid(undefined, 0, undefined);
 	for(var i = 0; i < this.unfulfilledBids.length; i++) {
 		var bid = this.unfulfilledBids[i];
 		if (bid.getStock() == stock && bid.getPrice() >= highestBid.getPrice()) {
@@ -109,8 +109,8 @@ ExchangeBean.prototype.getHighestBid = function(stock) {
 			}
 		} 
 	}
-	if (highestBid.getUser() == 'undefined') {
-		return 'undefined';
+	if (highestBid.getUserId() === undefined) {
+		return undefined;
 	}
 	return highestBid;
 }
@@ -119,7 +119,7 @@ ExchangeBean.prototype.getHighestBid = function(stock) {
 // returns -1 if there is no ask at all
 ExchangeBean.prototype.getLowestAskPrice = function(stock) {
 	var lowestAsk = this.getLowestAsk(stock);
-	if (lowestAsk = 'undefined') {
+	if (lowestAsk === undefined) {
 		return -1;
 	} else {
 		return lowestAsk.getPrice();
@@ -129,12 +129,12 @@ ExchangeBean.prototype.getLowestAskPrice = function(stock) {
 // retrieve unfulfiled current (lowest) ask for a particular stock
 // returns null if there is no unfulfiled asks for this stock
 ExchangeBean.prototype.getLowestAsk = function(stock) {
-	var lowestAsk = new askModule.Ask('undefined', Number.MAX_VALUE, 'undefined');
+	var lowestAsk = new askModule.Ask(undefined, Number.MAX_VALUE, undefined);
 	for (var i = 0; i < this.unfulfilledAsks.length; i++) {
 		var ask = this.unfulfilledAsks[i];
 		if (ask.getStock() == stock && ask.getPrice() <= lowestAsk.getPrice()) {
 			// there are 2 asks of the same ask amount, the earlier one is considered the highest ask
-			if (ask.getPrice() == lowestPrice.getPrice()) {
+			if (ask.getPrice() == lowestAsk.getPrice()) {
 				//compares dates
 				if (ask.getDate().getTime() < lowestAsk.getDate().getTime()) {
 					lowestAsk = ask;
@@ -144,21 +144,15 @@ ExchangeBean.prototype.getLowestAsk = function(stock) {
 			}
 		}
 	}
-	if (lowestAsj.getUserId() == 'undefined') {
-		return 'undefined';
+	if (lowestAsk.getUserId() === undefined) {
+		return undefined;
 	}
 	return lowestAsk;
 }
 
 ExchangeBean.prototype.getCreditRemaining = function(buyerUserId) {
-	console.log(buyerUserId);
 	
-	var a = new Array();
-	console.log(a['a2']);
-	
-	this.creditRemaining["Melvrick"] = this.DAILY_CREDIT_LIMIT_FOR_BUYERS;
-	console.log(this.creditRemaining["Melvrick"]);
-	if (this.creditRemaining.length == 0 || this.creditRemaining[buyerUserId] == 'undefined') {
+	if (this.creditRemaining[buyerUserId] === undefined) {
 		// this buyer is not in the hash table yet. Hence create a new entry for him
 		this.creditRemaining[buyerUserId] = this.DAILY_CREDIT_LIMIT_FOR_BUYERS;
 	}
@@ -172,7 +166,7 @@ ExchangeBean.prototype.validateCreditLimit = function(bid) {
 	var totalPriceOfBid = bid.getPrice() * 1000; //each bid is for 1000 shares
 	var remainingCredit = this.getCreditRemaining(bid.getUserId());
 	var newRemainingCredit = remainingCredit - totalPriceOfBid;
-	
+
 	if (newRemainingCredit < 0) {
 		// no go - log failed bid and return false
 		this.logRejectedBuyOrder(bid);
@@ -197,8 +191,10 @@ ExchangeBean.prototype.logRejectedBuyOrder = function(bid) {
 
 // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
 ExchangeBean.prototype.logMatchedTransactions = function() {
+	var log_File = this.MATCH_LOG_FILE;
 	this.matchedTransactions.forEach(function(transaction) {
-		fs.appendFile(this.MATCH_LOG_FILE, transaction.toString() + "\n", function(err) {
+		
+		fs.appendFile(log_File, transaction.toString() + "\n", function(err) {
 			if(err) {
 				console.log(err);
 			} else {
