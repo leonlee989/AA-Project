@@ -75,31 +75,34 @@ exports.buy = function(req, res) {
 
 exports.processBuy = function(req, res) {
 	var userId = req.session.userId;
-	var authenticatedUser = req.session.authenticatedUser;
 	
-	//req.session.stock = req.param('stock');
-	//req.session.tempBidPrice = req.param('bidprice');
-	var stock = req.param('stock');
-	var tempBidPrice = req.param('bidprice');
+	var stock = req.session.stock = req.param('stock');
+	var tempBidPrice = req.session.tempBidPrice = req.param('bidprice');
 	
 	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
 	var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
 	
 	if (bidIsAccepted) {
-		res.render('buySuccess.ejs', { 
-			userId: userId, 
-			authenticatedUser: authenticatedUser,
-			stock: stock,
-			bidPrice: tempBidPrice
-		});
+		res.redirect("/buySuccess");
 	} else {
-		res.render('buyFail.ejs', { 
-			userId: userId, 
-			authenticatedUser: authenticatedUser,
-			stock: stock,
-			bidPrice: tempBidPrice
-		});
+		res.redirect("/buyFail");
 	}
+}
+
+exports.buySuccess = function(req, res) {
+	res.render('buySuccess.ejs', { 
+		userId: req.session.userId, 
+		stock: req.session.stock,
+		bidPrice: req.session.tempBidPrice
+	});
+}
+
+exports.buyFail = function(req, res) {
+	res.render('buyFail.ejs', { 
+		userId: req.session.userId, 
+		stock: req.session.stock,
+		bidPrice: req.session.tempBidPrice
+	});
 }
 
 exports.sell = function(req, res) {
@@ -111,25 +114,22 @@ exports.sell = function(req, res) {
 
 exports.processSell = function(req, res) {
 	var userId = req.session.userId;
-	var authenticatedUser = req.session.authenticatedUser;
 	
-	//req.session.stock = req.param('stock');
-	//req.session.tempAskPrice = req.param('askprice');
-	
-	var stock = req.param('stock');
-	var tempAskPrice = req.param('askprice');
+	var stock = req.session.stock = req.param('stock');
+	var tempAskPrice = req.session.tempAskPrice = req.param('askprice');
 	
 	var newAsk = new askModule.Ask(stock, tempAskPrice, userId);
-	
 	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
+	res.redirect("/sellSuccess");
+}
+
+exports.sellSuccess = function(req, res) {
 	res.render('sellSuccess.ejs', { 
-		userId: userId, 
-		authenticatedUser: authenticatedUser,
-		stock: stock,
-		askPrice: tempAskPrice
+		userId: req.session.userId, 
+		stock: req.session.stock,
+		askPrice: req.session.tempAskPrice
 	});
-	
 }
 
 exports.logout = function(req,res) {

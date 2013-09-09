@@ -22,6 +22,11 @@ Bid.prototype.getDate = function() {
 	//return this.date.getMonth() + 1 + "-" + this.date.getDate() + "-" + this.date.getFullYear();
 }
 
+Bid.prototype.getDateString = function() {
+	var dateString = [[AddZero(this.date.getDate()), AddZero(this.date.getMonth() + 1), this.date.getFullYear()].join("/"), [AddZero(this.date.getHours()), AddZero(this.date.getMinutes())].join(":"), this.date.getHours() >= 12 ? "PM" : "AM"].join(" ");
+	return dateString;
+}
+
 Bid.prototype.toString = function() {
 	var dateString = [[AddZero(this.date.getDate()), AddZero(this.date.getMonth() + 1), this.date.getFullYear()].join("/"), [AddZero(this.date.getHours()), AddZero(this.date.getMinutes())].join(":"), this.date.getHours() >= 12 ? "PM" : "AM"].join(" ");
 	return "stock: " + this.stock + ", price: " + this.price + ", userId: " + this.userId + ", date: " + dateString;

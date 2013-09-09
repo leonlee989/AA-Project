@@ -55,6 +55,7 @@ function ExchangeBean() {
  // bods are separated by <br> for display on HTML page
 ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock) {
 	var returnString = "";
+		console.log(this.unfulfilledBids.length);
 	for ( var i = 0; i < this.unfulfilledBids.length; i++) {
 		var bid = this.unfulfilledBids[i];
 		
@@ -291,9 +292,10 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk) {
 	 // step 5: check if there is a match.
     // A match happens if the lowest ask is <= highest bid
 	if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-		// a match is found
-		this.unfulfilledBids.splice(highestBid, 1);
-		this.unfulfilledAsks.splice(lowestAsk, 1);
+		// a match is found		
+		this.unfulfilledBids.splice(this.unfulfilledBids.indexOf(highestBid), 1);
+		this.unfulfilledAsks.splice(this.unfulfilledAsks.indexOf(lowestAsk), 1);
+		
 		// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
 		var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
 		this.matchedTransactions.push(match);

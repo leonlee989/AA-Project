@@ -48,8 +48,14 @@ app.get('/static6', routes.static6);
 
 app.get('/login', routes.login);
 app.get('/logout', routes.logout);
+
 app.get('/buy', routes.authenUser, routes.buy);
+app.get('/buySuccess', routes.authenUser, routes.buySuccess);
+app.get('/buyFail', routes.authenUser, routes.buyFail);
+
 app.get('/sell', routes.authenUser, routes.sell);
+app.get('/sellSuccess', routes.authenUser, routes.sellSuccess);
+
 app.get('/current', routes.current);
 app.get('/viewOrders', routes.viewOrders);
 app.get('/endTradingDay', routes.endTradingDay);
