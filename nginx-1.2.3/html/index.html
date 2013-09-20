@@ -1,0 +1,56 @@
+<html>
+<head>
+<title>Welcome to nginx!</title>
+
+</head>
+<body bgcolor="blue" text="white">
+<script>
+				$(function() {
+				    $('#mc_signup_form').ketchup().submit(function(event) 
+				    {
+				        if ($(this).ketchup('isValid')) 
+				        {
+			                var action = $(this).attr('action');
+
+			                $.ajax({
+		                        url: action,
+		                        type: 'POST',
+		                        data: {
+		                                email: $('#sidebarAddress').attr('value')
+		                        },
+		                        success: function(data)
+		                        {
+
+		                        try {
+								        _gaq.push(['_trackEvent', 'Subscribes', 'Subscribed', 'Sidebar Subscribe', 5]);
+								    } catch(err) {
+								    	console.log(err);
+							    }	
+										$('#sidebarAddress').val('');
+			            				$('#SidebarResult').html('');	
+										$('#modalOverlay').addClass('subscribed').fadeIn();
+
+
+		                    	}
+
+		                	});
+			            }
+			            else 
+			            {
+			            	$('#SidebarResult').html("Something is wrong. Double check you've put a valid email address in!").css('color', 'red').show();
+
+			            }
+		            	
+		            	return false;
+		        	});
+		    	});
+		    
+</script>
+<center><h1>Welcome to nginx!</h1></center>
+<h3>Wts</h3>
+<div id="mc_signup" >
+				<h1>OMG</h1>
+
+			</div>
+</body>
+</html>
