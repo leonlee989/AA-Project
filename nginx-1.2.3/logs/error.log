@@ -165,6 +165,7 @@
 2013/09/19 20:41:18 [notice] 8608#2652: signal process started
 2013/09/19 20:46:59 [notice] 1580#9116: signal process started
 2013/09/19 20:54:52 [error] 1028#4064: *67 upstream timed out (10060: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond) while connecting to upstream, client: 127.0.0.1, server: localhost, request: "GET /static4 HTTP/1.1", upstream: "http://127.0.0.1:3000/static4", host: "localhost:100", referrer: "http://localhost:100/"
+
 2013/09/21 10:54:18 [notice] 4260#7364: signal process started
 2013/09/21 11:29:57 [notice] 7724#2648: signal process started
 2013/09/21 11:29:57 [error] 7724#2648: CreateFile() "D:\Leon\github\Architecture Analysis\nginx-1.2.3/logs/nginx.pid" failed (2: The system cannot find the file specified)
