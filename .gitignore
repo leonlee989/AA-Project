@@ -5,3 +5,5 @@
 /Prototype_Apache2/build/
 /Prototype_Apache1/dist/
 /Prototype_Apache2/dist/
+Prototype_Apache3/dist/Prototype.war
+nginx-1.2.3/conf/nginx.conf
