@@ -167,7 +167,11 @@ ExchangeBean.prototype.validateCreditLimit = function(bid) {
 	var totalPriceOfBid = bid.getPrice() * 1000; //each bid is for 1000 shares
 	var remainingCredit = this.getCreditRemaining(bid.getUserId());
 	var newRemainingCredit = remainingCredit - totalPriceOfBid;
-
+	
+	setTimeout(function() {
+		console.log("Need alot of time to process");
+	}, 1000);
+		
 	if (newRemainingCredit < 0) {
 		// no go - log failed bid and return false
 		this.logRejectedBuyOrder(bid);
@@ -223,10 +227,13 @@ ExchangeBean.prototype.getAllCreditRemainingForDisplay = function() {
 // it returns true if the bid has been successfully added
 ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid) {
 	var okToContinue = this.validateCreditLimit(newBid);
+	console.log(okToContinue);
+	/*
 	if (!okToContinue) {
 		return false;
 	}
-	
+	*/
+	console.log("testing");
 	// step 1: insert new bid into unfulfilledBids
 	this.unfulfilledBids.push(newBid);
 	

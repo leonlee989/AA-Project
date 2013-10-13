@@ -43,8 +43,8 @@ function ExchangeBean() {
 	this.latestPriceForNtu = -1;
 	
 	//dump all unfulfilled buy and sell orders
-	this.unfulfilledAsks = [];
-	this.unfulfilledBids = [];
+	unfulfilledAsks = [];
+	unfulfilledBids = [];
 	
 	// reset all credit limits of users
 	this.creditRemaining = [];
@@ -151,13 +151,13 @@ ExchangeBean.prototype.getLowestAsk = function(stock) {
 	return lowestAsk;
 }
 
-ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
+ExchangeBean.prototype.getCreditRemaining = function(buyerUserId) {
 	
 	if (this.creditRemaining[buyerUserId] === undefined) {
 		// this buyer is not in the hash table yet. Hence create a new entry for him
 		this.creditRemaining[buyerUserId] = this.DAILY_CREDIT_LIMIT_FOR_BUYERS;
 	}
-	callback(undefined, this.creditRemaining[buyerUserId]);
+	return this.creditRemaining[buyerUserId];
 }
 
 // check if a buyer is eligible to place an order based on his credit limit
@@ -165,11 +165,26 @@ ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
 // if he is not eligible, this method logs the bid and returns false
 ExchangeBean.prototype.validateCreditLimit = function(bid, callback) {
 	var totalPriceOfBid = bid.getPrice() * 1000; //each bid is for 1000 shares
-	
-	this.getCreditRemaining(bid.getUserId(), function(err,  remainingCredit) {
+	/*
+	this.getCreditRemaining(bid.getUserId(), function(err,  remainingCredit, creditRemaining, logRejectedBuyOrder) {
 		var newRemainingCredit = remainingCredit - totalPriceOfBid;
 		console.log(newRemainingCredit);
+		
+		if (newRemainingCredit < 0) {
+			// no go - log failed bid and return false
+			logRejectedBuyOrder(bid);
+			callback(undefined, false);
+		} else {
+			// it's ok - adjust credit limit and return true
+			creditRemaining[bid.getUserId()] = newRemainingCredit;
+			callback(undefined, true);
+		}
+		
 	});
+	*/
+	
+	var remainingCredit = this.getCreditRemaining(bid.getUserId());
+	var newRemainingCredit = remainingCredit - totalPriceOfBid;
 	
 	if (newRemainingCredit < 0) {
 		// no go - log failed bid and return false
@@ -178,6 +193,7 @@ ExchangeBean.prototype.validateCreditLimit = function(bid, callback) {
 	} else {
 		// it's ok - adjust credit limit and return true
 		this.creditRemaining[bid.getUserId()] = newRemainingCredit;
+		console.log(newRemainingCredit);
 		callback(undefined, true);
 	}
 }
@@ -225,19 +241,51 @@ ExchangeBean.prototype.getAllCreditRemainingForDisplay = function() {
 // this method returns false if this buy order has been rejected because of a credit limit breach
 // it returns true if the bid has been successfully added
 ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid) {
+	/*
+	async.parallel([
+		function(callback) {
+			ExchangeBean.validateCreditLimit(newBid);
+		}, 
+		function(callback) {
+			console.log("testing123");
+		}
+	 ],
+    function(err, results){
+        test.equals(err, null);
+        test.same(call_order, [3,1,2]);
+        test.same(results, [1,2,[3,3]]);
+        test.done();
+    });
+	*/
 	
-	this.validateCreditLimit(newBid, function(err, data) {
-		console.log(data);
+	this.validateCreditLimit(newBid, function(err, okToContinue) {
+		if (!okToContinue) {
+			return false;
+		}
+		
+		unfulfilledBids.push(newBid);
+		
+		var count = 0;
+		for (var i = 0; i < this.unfulfilledAsks.length; i++) {
+			if (this.unfulfilledAsks[i].getStock() == newBid.getStock()) {
+				count++;
+			}
+		}
+		if (count == 0) {
+			return true;
+		}
+		while(true) {
+			
+		}
 	});
-	//console.log(okToContinue);
-	//if (!okToContinue) {
-		//return false;
-	//}
+	
+	console.log("testing");
 	// step 1: insert new bid into unfulfilledBids
-	this.unfulfilledBids.push(newBid);
+	//this.unfulfilledBids.push(newBid);
 	
 	// step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
     // count keeps track of the number of unfulfilled asks for this stock
+	/*
 	var count = 0;
 	for (var i = 0; i < this.unfulfilledAsks.length; i++) {
 		if (this.unfulfilledAsks[i].getStock() == newBid.getStock()) {
@@ -247,6 +295,7 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid) {
 	if (count == 0) {
 		return true;
 	}
+	*/
 	
 	// step 3: identify the current/highest bid in unfulfilledBids of the same stock
 	var highestBid = this.getHighestBid(newBid.getStock());
