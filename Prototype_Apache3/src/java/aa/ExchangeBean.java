@@ -350,4 +350,25 @@ public class ExchangeBean {
     }
     return -1; // no such stock
   }
+  
+    public boolean sendToBackOffice(String txnDescription){
+      aa.Service service = new aa.Service();
+      boolean status = false;
+      
+      try {
+        // create new instances of remote Service objects
+        aa.ServiceSoap port = service.getServiceSoap();
+
+        // invoke the remote method by calling port.processTransaction().
+        // processTransaction() will return false if the teamID &/or password is wrong
+        // it will return true if the web service is correctly called
+        status = port.processTransaction("G3T7", "lime", txnDescription);
+        return status;
+      }
+      catch (Exception ex) {
+          // may come here if a time out or any other exception occurs
+          // what should you do here??
+      }
+      return false; // failure due to exception
+  }
 }
