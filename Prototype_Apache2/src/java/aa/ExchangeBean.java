@@ -1,8 +1,11 @@
 package aa;
 
 import java.io.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
-
+import javax.naming.NamingException;
+ 
 public class ExchangeBean {
 
   // location of log files - change if necessary
@@ -31,12 +34,13 @@ public class ExchangeBean {
   // credit limit should be rejected and logged
   // The key for this Hashtable is the user ID of the buyer, and the corresponding value is the REMAINING credit limit
   // the remaining credit limit should not go below 0 under any circumstance!
-  private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
+  // --- Credit is now stored in database. ----
+  //private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
 
 
   // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
   // this is a good chance to "clean up" everything to get ready for the next trading day
-  public void endTradingDay(){
+  public void endTradingDay() throws Exception{
     // reset attributes
     latestPriceForSmu = -1;
     latestPriceForNus = -1;
@@ -47,7 +51,9 @@ public class ExchangeBean {
     unfulfilledBids.clear();
 
     // reset all credit limits of users
-    creditRemaining.clear();
+    //creditRemaining.clear();
+    // Reset the credit in database #SD#.
+    DbBean.executeUpdate("delete from credit");
   }
 
   // returns a String of unfulfilled bids for a particular stock
@@ -67,6 +73,29 @@ public class ExchangeBean {
   // returns a String of unfulfilled asks for a particular stock
   // returns an empty string if no such ask
   // asks are separated by <br> for display on HTML page
+  
+    public boolean sendToBackOffice(String txnDescription){
+      aa.Service service = new aa.Service();
+      boolean status = false;
+      
+      try {
+        // create new instances of remote Service objects
+        aa.ServiceSoap port = service.getServiceSoap();
+
+        // invoke the remote method by calling port.processTransaction().
+        // processTransaction() will return false if the teamID &/or password is wrong
+        // it will return true if the web service is correctly called
+        status = port.processTransaction("G3T7", "lime", txnDescription);
+        return status;
+      }
+      catch (Exception ex) {
+          // may come here if a time out or any other exception occurs
+          // what should you do here??
+      }
+      return false; // failure due to exception
+  }
+
+    
   public String getUnfulfilledAsks(String stock) {
     String returnString = "";
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
@@ -149,18 +178,35 @@ public class ExchangeBean {
   }
 
   // get credit remaining for a particular buyer
-  private int getCreditRemaining(String buyerUserId){
-    if (!(creditRemaining.containsKey(buyerUserId))){
-      // this buyer is not in the hash table yet. hence create a new entry for him
-      creditRemaining.put(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
+  private int getCreditRemaining(String buyerUserId) throws ClassNotFoundException, SQLException, NamingException{
+//    if (!(creditRemaining.containsKey(buyerUserId))){
+//      // this buyer is not in the hash table yet. hence create a new entry for him
+//      creditRemaining.put(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
+//    }
+//    return creditRemaining.get(buyerUserId);
+    
+   //read the credit limit from database #SD#
+   ResultSet rs = DbBean.executeSql(String.format("select credit_limit from credit where userid='%s'", buyerUserId));
+    
+    if (rs.next())
+    {
+        return rs.getInt("credit_limit");        
+    }    
+    else
+    {
+        DbBean.executeUpdate(
+                String.format("insert into credit (userid,credit_limit) values('%s',%s)",
+                buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS));
+        
+        return DAILY_CREDIT_LIMIT_FOR_BUYERS;
     }
-    return creditRemaining.get(buyerUserId);
+    
   }
 
   // check if a buyer is eligible to place an order based on his credit limit
   // if he is eligible, this method adjusts his credit limit and returns true
   // if he is not eligible, this method logs the bid and returns false
-  private boolean validateCreditLimit(Bid b){
+  private boolean validateCreditLimit(Bid b) throws ClassNotFoundException, SQLException,NamingException{
     // calculate the total price of this bid
     int totalPriceOfBid = b.getPrice() * 1000; // each bid is for 1000 shares
     int remainingCredit = getCreditRemaining(b.getUserId());
@@ -173,7 +219,11 @@ public class ExchangeBean {
     }
     else {
       // it's ok - adjust credit limit and return true
-      creditRemaining.put(b.getUserId(), newRemainingCredit);
+      //creditRemaining.put(b.getUserId(), newRemainingCredit);
+      
+     //Update the credit limit in the database. #SD#
+      DbBean.executeUpdate(String.format("update credit set credit_limit=%s where userid='%s'", newRemainingCredit, b.getUserId()));
+      
       return true;
     }
   }
@@ -217,15 +267,22 @@ public class ExchangeBean {
 
   // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
   // this method is used by viewOrders.jsp for debugging purposes
-  public String getAllCreditRemainingForDisplay(){
+  public String getAllCreditRemainingForDisplay() throws Exception{
     String returnString = "";
 
-    Enumeration items = creditRemaining.keys();
-
-    while (items.hasMoreElements()){
-      String key = (String)items.nextElement();
-      int value = creditRemaining.get(key);
-      returnString += "<tr><td>" + key + "</td><td>" + value + "</td></tr>";
+//    Enumeration items = creditRemaining.keys();
+//
+//    while (items.hasMoreElements()){
+//      String key = (String)items.nextElement();
+//      int value = creditRemaining.get(key);
+//      returnString += "<tr><td>" + key + "</td><td>" + value + "</td></tr>";
+//    }
+    
+    //get the credit limit for all users from database. #SD#
+    ResultSet rs = DbBean.executeSql("select * from credit");
+    while(rs.next())
+    {
+        returnString += "<tr><td>" + rs.getString("userid") + "</td><td>" + rs.getInt("credit_limit") + "</td></tr>";        
     }
     return returnString;
   }
@@ -233,11 +290,11 @@ public class ExchangeBean {
   // call this method immediatley when a new bid (buying order) comes in
   // this method returns false if this buy order has been rejected because of a credit limit breach
   // it returns true if the bid has been successfully added
-  public boolean placeNewBidAndAttemptMatch(Bid newBid) {
+  public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception{
     // step 0: check if this bid is valid based on the buyer's credit limit
     boolean okToContinue = validateCreditLimit(newBid);
     if (!okToContinue){
-      return false;
+      return false; 
     }
 
     // step 1: insert new bid into unfulfilledBids
@@ -351,24 +408,5 @@ public class ExchangeBean {
     return -1; // no such stock
   }
   
-    public boolean sendToBackOffice(String txnDescription){
-      aa.Service service = new aa.Service();
-      boolean status = false;
-      
-      try {
-        // create new instances of remote Service objects
-        aa.ServiceSoap port = service.getServiceSoap();
-
-        // invoke the remote method by calling port.processTransaction().
-        // processTransaction() will return false if the teamID &/or password is wrong
-        // it will return true if the web service is correctly called
-        status = port.processTransaction("G3T7", "lime", txnDescription);
-        return status;
-      }
-      catch (Exception ex) {
-          // may come here if a time out or any other exception occurs
-          // what should you do here??
-      }
-      return false; // failure due to exception
-  }
+  
 }

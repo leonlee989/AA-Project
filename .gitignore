@@ -1,10 +1,16 @@
-/Prototype_Apache3/build/
-/Prototype_Apache3/nbproject/private/
-/Prototype_Apache1/build/
-/Prototype_Apache1/nbproject/private/
-/Prototype_Apache2/build/
 /Prototype_Apache1/dist/
+/Prototype_Apache1/build/
+/Prototype_Apache1/nbproject/
+/Prototype_Apache3/dist/
+/Prototype_Apache3/build/
+/Prototype_Apache3/nbproject/
+/Prototype_Apache2/build/
 /Prototype_Apache2/dist/
-Prototype_Apache3/dist/Prototype.war
+/Prototype_Apache2/nbproject/
 nginx-1.2.3/conf/nginx.conf
+/AA_Domain/node-modules/
+/AA_Domain_2nd server/node-modules/
+/AA_Domain_3rd server/node-modules/
+/Prototye_node/node_modules/
+/Prototye_node_Working Copy/node_modules/
 .metadata/
