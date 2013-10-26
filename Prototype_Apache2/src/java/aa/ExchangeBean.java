@@ -1,9 +1,13 @@
 package aa;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.naming.NamingException;
  
 public class ExchangeBean {
@@ -121,25 +125,21 @@ public class ExchangeBean {
   // retrieve unfulfiled current (highest) bid for a particular stock
   // returns null if there is no unfulfiled bid for this stock
   private Bid getHighestBid(String stock) {
-    Bid highestBid = new Bid(null, 0, null);
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      Bid bid = unfulfilledBids.get(i);
-      if (bid.getStock().equals(stock) && bid.getPrice() >= highestBid.getPrice()) {
-        // if there are 2 bids of the same amount, the earlier one is considered the highest bid
-        if (bid.getPrice() == highestBid.getPrice()) {
-          // compare dates
-          if (bid.getDate().getTime() < highestBid.getDate().getTime()) {
-            highestBid = bid;
+    Connection connection = DbBean.getDbConnection();
+    PreparedStatement stmt;
+    ResultSet rs = null;
+      try {
+          stmt = connection.prepareStatement("select * from bid WHERE stock = ? order by price DESC, order by askDate ASC LIMIT 1");
+          stmt.setString(1,stock);
+          rs = DbBean.executeSql(stmt);
+          if (rs == null){
+            return null;
           }
-        } else {
-          highestBid = bid;
-        }
+          return new Bid(rs.getString("stock"),rs.getInt("price"),rs.getString("userID"),rs.getTimestamp("bidDate"));
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    if (highestBid.getUserId() == null) {
-      return null; // there's no unfulfilled bid at all!
-    }
-    return highestBid;
+    return null;
   }
 
   // returns the lowest ask for a particular stock
@@ -152,29 +152,27 @@ public class ExchangeBean {
       return lowestAsk.getPrice();
     }
   }
-
+  
+  
+  
   // retrieve unfulfiled current (lowest) ask for a particular stock
-  // returns null if there is no unfulfiled asks for this stock
+  // returns null if there is no unfulfiled asks or errors
   private Ask getLowestAsk(String stock) {
-    Ask lowestAsk = new Ask(null, Integer.MAX_VALUE, null);
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      Ask ask = unfulfilledAsks.get(i);
-      if (ask.getStock().equals(stock) && ask.getPrice() <= lowestAsk.getPrice()) {
-        // if there are 2 asks of the same ask amount, the earlier one is considered the highest ask
-        if (ask.getPrice() == lowestAsk.getPrice()) {
-          // compare dates
-          if (ask.getDate().getTime() < lowestAsk.getDate().getTime()) {
-            lowestAsk = ask;
+    Connection connection = DbBean.getDbConnection();
+    PreparedStatement stmt;
+    ResultSet rs = null;
+      try {
+          stmt = connection.prepareStatement("select * from ask WHERE stock = ? order by price ASC, order by askDate ASC LIMIT 1");
+          stmt.setString(1,stock);
+          rs = DbBean.executeSql(stmt);
+          if (rs == null){
+            return null;
           }
-        } else {
-          lowestAsk = ask;
-        }
+          return new Ask(rs.getString("stock"),rs.getInt("price"),rs.getString("userID"),rs.getTimestamp("askDate"));
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    if (lowestAsk.getUserId() == null) {
-      return null; // there's no unfulfilled asks at all!
-    }
-    return lowestAsk;
+    return null;
   }
 
   // get credit remaining for a particular buyer
@@ -380,6 +378,34 @@ public class ExchangeBean {
     }
   }
 
+  public ArrayList<Bid> getAllBids() throws Exception{
+      String returnString = ""; 
+      ArrayList<Bid> bids = new ArrayList<Bid>();
+      ResultSet rs = DbBean.executeSql("select * from bid");
+      while (rs.next()){
+          String stock = rs.getString("stock");
+          int price = rs.getInt("price");
+          String userID = rs.getString("userID");
+          Date bidDate = rs.getTimestamp("bidDate");
+          bids.add(new Bid(stock,price,userID,bidDate));
+      }
+      return bids;
+  }
+  
+  public ArrayList<Ask> getAllAsks() throws Exception{
+      String returnString = ""; 
+      ArrayList<Ask> asks = new ArrayList<Ask>();
+      ResultSet rs = DbBean.executeSql("select * from ask");
+      while (rs.next()){
+          String stock = rs.getString("stock");
+          int price = rs.getInt("price");
+          String userID = rs.getString("userID");
+          Date askDate = rs.getTimestamp("askDate");
+          asks.add(new Ask(stock,price,userID,askDate));
+      }
+      return asks;
+  }
+  
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   private void updateLatestPrice(MatchedTransaction m) {
