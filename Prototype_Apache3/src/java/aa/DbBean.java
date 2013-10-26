@@ -58,7 +58,7 @@ public class DbBean {
             return null;
         }
 
-        //execute sql.
+        //execute sql
         Statement dbStatement = dbConnection.createStatement();
         return dbStatement.executeQuery(sql);
     }

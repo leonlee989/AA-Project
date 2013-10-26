@@ -50,23 +50,24 @@ public class ExchangeBean {
     latestPriceForNus = -1;
     latestPriceForNtu = -1;
 
-    // dump all unfulfilled buy and sell orders
-    unfulfilledAsks.clear();
-    unfulfilledBids.clear();
+    // dump all unfulfilled buy and sell orders from their respective tables
+    clearTable("ask");
+    clearTable("bid");
 
     // reset all credit limits of users
     //creditRemaining.clear();
     // Reset the credit in database #SD#.
-    DbBean.executeUpdate("delete from credit");
+    clearTable("credit");
   }
 
   // returns a String of unfulfilled bids for a particular stock
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
+    ArrayList<Bid> allBids = getAllBids();
     String returnString = "";
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      Bid bid = unfulfilledBids.get(i);
+    for (int i = 0; i < allBids.size(); i++) {
+      Bid bid = allBids.get(i);
       if (bid.getStock().equals(stock)) {
         returnString += bid.toString() + "<br />";
       }
@@ -101,9 +102,10 @@ public class ExchangeBean {
 
     
   public String getUnfulfilledAsks(String stock) {
+    ArrayList<Ask> allAsks = getAllAsks();
     String returnString = "";
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      Ask ask = unfulfilledAsks.get(i);
+    for (int i = 0; i < allAsks.size(); i++) {
+      Ask ask = allAsks.get(i);
       if (ask.getStock().equals(stock)) {
         returnString += ask.toString() + "<br />";
       }
@@ -378,32 +380,50 @@ public class ExchangeBean {
     }
   }
 
-  public ArrayList<Bid> getAllBids() throws Exception{
-      String returnString = ""; 
-      ArrayList<Bid> bids = new ArrayList<Bid>();
-      ResultSet rs = DbBean.executeSql("select * from bid");
-      while (rs.next()){
-          String stock = rs.getString("stock");
-          int price = rs.getInt("price");
-          String userID = rs.getString("userID");
-          Date bidDate = rs.getTimestamp("bidDate");
-          bids.add(new Bid(stock,price,userID,bidDate));
+  public ArrayList<Bid> getAllBids(){
+      try {
+          String returnString = ""; 
+          ArrayList<Bid> bids = new ArrayList<Bid>();
+          ResultSet rs = DbBean.executeSql("select * from bid");
+          while (rs.next()){
+              String stock = rs.getString("stock");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date bidDate = rs.getTimestamp("bidDate");
+              bids.add(new Bid(stock,price,userID,bidDate));
+          }
+          return bids;
+      } catch (ClassNotFoundException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (NamingException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-      return bids;
+      return null;
   }
   
-  public ArrayList<Ask> getAllAsks() throws Exception{
-      String returnString = ""; 
-      ArrayList<Ask> asks = new ArrayList<Ask>();
-      ResultSet rs = DbBean.executeSql("select * from ask");
-      while (rs.next()){
-          String stock = rs.getString("stock");
-          int price = rs.getInt("price");
-          String userID = rs.getString("userID");
-          Date askDate = rs.getTimestamp("askDate");
-          asks.add(new Ask(stock,price,userID,askDate));
+  public ArrayList<Ask> getAllAsks(){
+      try {
+          String returnString = ""; 
+          ArrayList<Ask> asks = new ArrayList<Ask>();
+          ResultSet rs = DbBean.executeSql("select * from ask");
+          while (rs.next()){
+              String stock = rs.getString("stock");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date askDate = rs.getTimestamp("askDate");
+              asks.add(new Ask(stock,price,userID,askDate));
+          }
+          return asks;
+      } catch (ClassNotFoundException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (NamingException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-      return asks;
+      return null;
   }
   
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
@@ -434,5 +454,15 @@ public class ExchangeBean {
     return -1; // no such stock
   }
   
-  
+  private void clearTable(String tableName){
+      Connection connection = DbBean.getDbConnection();
+      PreparedStatement stmt;
+      ResultSet rs = null;
+      try {
+          stmt = connection.prepareStatement("delete from " + tableName);
+          rs = DbBean.executeSql(stmt);
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      }
+  }
 }
