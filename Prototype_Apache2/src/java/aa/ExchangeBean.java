@@ -1,6 +1,8 @@
 package aa;
 
 import java.io.*;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -106,6 +108,16 @@ public class ExchangeBean {
           ps.setInt(2, ask.getPrice());
           ps.setString(3, ask.getUserId());
           ps.setTimestamp(4, new Timestamp(ask.getDate().getTime()));
+      }catch(SQLException e){
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+      }
+  }
+  
+  private void insertLog(String logTableName, String logStatement){
+      String insertValueSQL = "INSERT INTO " + logTableName + " (logStatement) VALUES (?)";
+      try{
+          PreparedStatement ps = connection.prepareStatement(insertValueSQL);
+          ps.setString(1, logStatement);
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
       }
@@ -236,36 +248,54 @@ public class ExchangeBean {
 
   // call this to append all rejected buy orders to log file
   private void logRejectedBuyOrder(Bid b) {
+      String bidMessage = b.toString() + "\n";
     try {
-      PrintWriter outFile = new PrintWriter(new FileWriter(REJECTED_BUY_ORDERS_LOG_FILE, true));
-      outFile.append(b.toString() + "\n");
+      File rejectedLogFile = new File(REJECTED_BUY_ORDERS_LOG_FILE);
+      File parent = rejectedLogFile.getParentFile();
+      if (!parent.exists() && !parent.mkdirs()){
+          //Take care of no path
+          throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
+      }
+      PrintWriter outFile = new PrintWriter(rejectedLogFile);
+      outFile.append(bidMessage);
       outFile.close();
     } catch (IOException e) {
-      // Think about what should happen here...
+      // If Java has no admin rights n cannot write to hard-disk temp files
       System.out.println("IO EXCEPTIOn: Cannot write to file");
+      logRelativeFilePath(REJECTED_BUY_ORDERS_LOG_FILE.split("\\")[REJECTED_BUY_ORDERS_LOG_FILE.length()-1],b.toString());
       e.printStackTrace();
     } catch (Exception e) {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
     }
+    insertLog("rejectedLog",bidMessage);
   }
 
   // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
   private void logMatchedTransactions() {
-    try {
-      PrintWriter outFile = new PrintWriter(new FileWriter(MATCH_LOG_FILE, true));
+    
+      try {
+        File matchedFile = new File(MATCH_LOG_FILE);
+        
+        File parent = matchedFile.getParentFile();
+      if (!parent.exists() && !parent.mkdirs()){
+          //Take care of no path
+          throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
+      }
+        PrintWriter outFile = new PrintWriter(matchedFile);
       ArrayList<MatchedTransaction> transactions = new ArrayList<MatchedTransaction>();
       for (MatchedTransaction m : transactions) {
-        outFile.append(m.toString() + "\n");
+        String transactionMessage = m.toString();
+        outFile.append(transactionMessage + "\n");
+        insertLog("matchedLog",transactionMessage);
       }
-      ArrayList<String> strings = new ArrayList<String>();
-      strings.clear();
       clearTable("matches"); // clean this out
       outFile.close();
     } catch (IOException e) {
       // Think about what should happen here...
       System.out.println("IO EXCEPTIOn: Cannot write to file");
+      logRelativeFilePath(MATCH_LOG_FILE.split("\\")[MATCH_LOG_FILE.length()-1],"error to be handled");
       e.printStackTrace();
     } catch (Exception e) {
       // Think about what should happen here...
@@ -508,6 +538,8 @@ public class ExchangeBean {
           return rs.getInt("price");
       } catch (SQLException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (NullPointerException e){
+          executeInsertPrice(stock,-1);
       }
     return -1;//no such stock
   }
@@ -589,5 +621,21 @@ public class ExchangeBean {
         }catch(SQLException e){
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
         }
+    }
+
+    private void logRelativeFilePath(String fileName, String stringMessage) {
+      try {
+          ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+          URL url = classLoader.getResource(fileName);
+          File file = new File(url.toURI());
+          if (!file.exists()){
+              file.createNewFile();
+          }
+          PrintWriter outFile = new PrintWriter(file);
+          outFile.append(stringMessage);
+          outFile.close();
+      } catch (URISyntaxException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (IOException e){e.printStackTrace();}
     }
 }
