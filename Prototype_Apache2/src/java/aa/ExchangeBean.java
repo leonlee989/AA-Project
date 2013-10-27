@@ -504,8 +504,9 @@ public class ExchangeBean {
       PreparedStatement stmt;
       ResultSet rs = null;
       try {
-          stmt = connection.prepareStatement("UPDATE price from stock WHERE stock = ?");
-          stmt.setString(1,stock);
+          stmt = connection.prepareStatement("UPDATE stock SET price = ? WHERE stock = ?");
+          stmt.setInt(1, price);
+          stmt.setString(2,stock);
           rs = DbBean.executeSql(stmt);
           if (rs == null){
             executeInsertPrice(stock,price);//if stock is not found, insert new value for the stock
@@ -592,9 +593,10 @@ public class ExchangeBean {
   }
 
     private void executeInsertPrice(String stock, int price) {
-        String insertValueSQL = "INSERT INTO stock (stock,price) VALUES (?,?)";
         try{
-            PreparedStatement ps = connection.prepareStatement(insertValueSQL);
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, "HELLO HELLO " + stock + "    " + price);
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO stock (stock,price) VALUES (?,?)");
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, "HELLO HELLO" + ps);
             ps.setString(1, stock);
             ps.setInt(2, price);
         }catch(SQLException e){
