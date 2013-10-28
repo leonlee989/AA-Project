@@ -40,7 +40,15 @@ public class MatchedTransaction {
   public String getSellerId() {
     return ask.getUserId();
   }
+  
+  public Ask getAsk(){
+      return ask;
+  }
 
+  public Bid getBid(){
+      return bid;
+  }
+  
   // toString
   public String toString() {
     return "stock: " + stock + ", amt: " + price + ", bidder userId: " + bid.getUserId() + ", seller userId: " + ask.getUserId() + ", date: " + date;

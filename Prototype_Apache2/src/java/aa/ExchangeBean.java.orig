@@ -544,10 +544,18 @@ public class ExchangeBean {
       }
     return -1;//no such stock
   }
+<<<<<<< HEAD
   /*
+    public boolean sendToBackOffice(String txnDescription){
+      aa.Service service = new aa.Service();
+      boolean status = false;
+      
+=======
+  
   private void clearTable(String tableName){
       PreparedStatement stmt;
       ResultSet rs = null;
+>>>>>>> 3013eb80973825713e9f249e409dd7404bf2fff6
       try {
           stmt = connection.prepareStatement("delete from " + tableName);
           rs = DbBean.executeSql(stmt);
@@ -576,6 +584,9 @@ public class ExchangeBean {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
   }
+<<<<<<< HEAD
+  */
+=======
   
   private void deleteBid(Bid bid){
       PreparedStatement stmt;
@@ -640,4 +651,5 @@ public class ExchangeBean {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (IOException e){e.printStackTrace();}
     }
+>>>>>>> 3013eb80973825713e9f249e409dd7404bf2fff6
 }
