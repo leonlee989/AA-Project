@@ -12,32 +12,30 @@ CREATE TABLE credit (
 
 DROP TABLE IF EXISTS stock;
 CREATE TABLE stock (
-	stock varchar(10) not null,
+	stockName varchar(10) not null,
 	price int not null,
 	
-  PRIMARY KEY (stock)
+  PRIMARY KEY (stockName)
 ); 
 
 DROP TABLE IF EXISTS ask;
 CREATE TABLE ask (
-	stock varchar(10) not null,
+	stockName varchar(10) not null,
 	price int not null,
 	userID varchar(50) not null,
 	askDate TimeStamp not null,
 	
-  PRIMARY KEY (stock,price,userID,askDate),
-  CONSTRAINT fk_askStock FOREIGN KEY (stock) REFERENCES stock(stock)
+  PRIMARY KEY (stockName,price,userID,askDate)
 ); 
 
 DROP TABLE IF EXISTS bid;
 CREATE TABLE bid (
-	stock varchar(10) not null,
+	stockName varchar(10) not null,
 	price int not null,
 	userID varchar(50) not null,
 	bidDate TimeStamp not null,
 	
-  PRIMARY KEY (stock,price,userID,bidDate),
-  CONSTRAINT fk_bidStock FOREIGN KEY (stock) REFERENCES stock(stock)
+  PRIMARY KEY (stockName,price,userID,bidDate)
 ); 
 
 DROP TABLE IF EXISTS matches;
@@ -51,9 +49,27 @@ CREATE TABLE matches (
 	askDate TimeStamp not null,
 	matchDate TimeStamp not null,
 	price int not null,
-	stock varchar(10) not null,
+	stockName varchar(10) not null,
 	
-  PRIMARY KEY (id),
-  CONSTRAINT fk_askDetails FOREIGN KEY (stock,askPrice,askUserID,askDate) REFERENCES ask(stock,price,userID,askDate),
-  CONSTRAINT fk_bidDetails FOREIGN KEY (stock,bidPrice,bidUserID,bidDate) REFERENCES bid(stock,price,userID,bidDate)
+  PRIMARY KEY (id)
 ); 
+
+DROP TABLE IF EXISTS rejectedLog;
+CREATE TABLE rejectedLog (
+	id bigint not null auto_increment,
+	logStatement varchar(500),
+	
+	PRIMARY KEY(id)
+);
+
+DROP TABLE IF EXISTS matchedLog;
+CREATE TABLE matchedLog (
+	id bigint not null auto_increment,
+	logStatement varchar(500),
+	
+	PRIMARY KEY(id)
+);
+
+INSERT INTO stock (stockName,price) VALUES ('smu',-1);
+INSERT INTO stock (stockName,price) VALUES ('nus',-1);
+INSERT INTO stock (stockName,price) VALUES ('ntu',-1);

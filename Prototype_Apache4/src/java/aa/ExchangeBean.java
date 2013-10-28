@@ -4,7 +4,6 @@ import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -88,10 +87,11 @@ public class ExchangeBean {
   }
     
   private void insertBid(Bid bid){
-      String insertValueSQL = "INSERT INTO bid (stock,price,userID,bidDate) VALUES ('%s','%s','%s','%s')";
+      String insertValueSQL = "INSERT INTO bid (stockName,price,userID,bidDate) VALUES ('%s','%s','%s','%s')";
       try{
           String sqlStmt = String.format(insertValueSQL, bid.getStock(),bid.getPrice(),bid.getUserId(),new Timestamp(bid.getDate().getTime()));
-          DbBean.executeUpdate(sqlStmt);      
+          System.out.println(sqlStmt);
+          DbBean.executeUpdate(sqlStmt);     
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
       }catch(ClassNotFoundException e){
@@ -102,9 +102,10 @@ public class ExchangeBean {
   }
 
   private void insertAsk(Ask ask){
-      String insertValueSQL = "INSERT INTO ask (stock,price,userID,askDate) VALUES ('%s','%s','%s','%s')";
+      String insertValueSQL = "INSERT INTO ask (stockName,price,userID,askDate) VALUES ('%s','%s','%s','%s')";
       try{
           String sqlStmt = String.format(insertValueSQL, ask.getStock(),ask.getPrice(),ask.getUserId(),new Timestamp(ask.getDate().getTime()));
+          System.out.println(sqlStmt);          
           DbBean.executeUpdate(sqlStmt); 
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
@@ -130,6 +131,7 @@ public class ExchangeBean {
   }
     
   public String getUnfulfilledAsks(String stock) {
+    System.out.println("get all unfulfilled asks");
     ArrayList<Ask> allAsks = getAllAsks();
     String returnString = "";
     for (int i = 0; i < allAsks.size(); i++) {
@@ -155,12 +157,20 @@ public class ExchangeBean {
   // retrieve unfulfiled current (highest) bid for a particular stock
   // returns null if there is no unfulfiled bid for this stock
   private Bid getHighestBid(String stock) {
+      System.out.println("CALLING HIGHEST BID");
       try {
-          ResultSet rs = DbBean.executeSql(String.format("select * from bid WHERE stock = '%s' order by price DESC, bidDate ASC LIMIT 1", stock));
+          ResultSet rs = DbBean.executeSql(String.format("select * from bid WHERE stockName = '%s' order by price DESC, bidDate ASC LIMIT 1", stock));
           if (rs == null){
             return null;
           }
-          return new Bid(rs.getString("stock"),rs.getInt("price"),rs.getString("userID"),rs.getTimestamp("bidDate"));
+          while (rs.next()){
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String id = rs.getString("userID");
+              Date bidDate = rs.getTimestamp("bidDate");
+              System.out.println("LN167 Lowest Ask: " + stockName + "   "+ price + "   "+ id + "   "+ bidDate + "   ");
+              return new Bid(stockName,price,id,bidDate);
+          }
       }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }catch(ClassNotFoundException e){
@@ -186,11 +196,18 @@ public class ExchangeBean {
   // returns null if there is no unfulfiled asks or errors
   private Ask getLowestAsk(String stock) {
       try {
-          ResultSet rs = DbBean.executeSql(String.format("select * from ask WHERE stock = '%s' order by price ASC, askDate ASC LIMIT 1",stock));
+          ResultSet rs = DbBean.executeSql(String.format("select * from ask WHERE stockName = '%s' order by price ASC, askDate ASC LIMIT 1",stock));
           if (rs == null){
             return null;
           }
-          return new Ask(rs.getString("stock"),rs.getInt("price"),rs.getString("userID"),rs.getTimestamp("askDate"));
+          while (rs.next()){
+            String stockName = rs.getString("stockName");
+            int price = rs.getInt("price");
+            String id = rs.getString("userID");
+            Date askDate = rs.getTimestamp("askDate");
+            System.out.println("LN203 Lowest Ask: " + stockName + "   "+ price + "   "+ id + "   "+ askDate + "   ");
+            return new Ask(stockName,price,id,askDate);
+          }
       }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }catch(ClassNotFoundException e){
@@ -336,6 +353,7 @@ public class ExchangeBean {
   // this method returns false if this buy order has been rejected because of a credit limit breach
   // it returns true if the bid has been successfully added
   public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception{
+    System.out.println("PLACE NEW BID N ATTEMPT MATCH");
     ArrayList<Bid> allBids = getAllBids();
     ArrayList<Ask> allAsks = getAllAsks();
     // step 0: check if this bid is valid based on the buyer's credit limit
@@ -347,6 +365,9 @@ public class ExchangeBean {
     // step 1: insert new bid into unfulfilledBids
     //INSERT IN RUN TIME ARRAYLIST
     allBids.add(newBid);
+    //Update DB
+    insertBid(newBid);
+    
 
     // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
     // count keeps track of the number of unfulfilled asks for this stock
@@ -373,7 +394,9 @@ public class ExchangeBean {
     // A match happens if the highest bid is bigger or equal to the lowest ask
     if (highestBid.getPrice() >= lowestAsk.getPrice()) {
       // a match is found!
+      allBids.remove(highestBid);
       deleteBid(highestBid);
+      allAsks.remove(lowestAsk);
       deleteAsk(lowestAsk);
       // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
       MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
@@ -395,7 +418,8 @@ public class ExchangeBean {
     ArrayList<Bid> allBids = getAllBids();
     // step 1: insert new ask into unfulfilledAsks
     allAsks.add(newAsk);
-
+    //insert in DB ask
+    insertAsk(newAsk);
     // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
     // count keeps track of the number of unfulfilled bids for this stock
     int count = 0;
@@ -418,9 +442,11 @@ public class ExchangeBean {
     // step 5: check if there is a match.
     // A match happens if the lowest ask is <= highest bid
     if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-      // a match is found!
+      // a match is found! Start removing from runtime & db
       allBids.remove(highestBid);
+      deleteBid(highestBid);
       allAsks.remove(lowestAsk);
+      deleteAsk(lowestAsk);
       // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
       MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
       executeInsertMatchedTransaction(match);
@@ -438,10 +464,11 @@ public class ExchangeBean {
           ArrayList<Bid> bids = new ArrayList<Bid>();
           ResultSet rs = DbBean.executeSql("select * from bid");
           while (rs.next()){
-              String stock = rs.getString("stock");
+              String stock = rs.getString("stockName");
               int price = rs.getInt("price");
               String userID = rs.getString("userID");
               Date bidDate = rs.getTimestamp("bidDate");
+              System.out.println("LN 461 > " + stock + " " + bidDate);
               bids.add(new Bid(stock,price,userID,bidDate));
           }
           return bids;
@@ -468,7 +495,7 @@ public class ExchangeBean {
               Date askDate = rs.getTimestamp("askDate");
               Date matchDate = rs.getTimestamp("matchDate");
               int price = rs.getInt("price");
-              String stock = rs.getString("stock");
+              String stock = rs.getString("stockName");
               Ask ask = new Ask(stock,askPrice,askUserId,askDate);
               Bid bid = new Bid(stock,bidPrice,bidUserId,bidDate);
               transactions.add(new MatchedTransaction(bid,ask,matchDate,price));
@@ -489,7 +516,7 @@ public class ExchangeBean {
           ArrayList<Ask> asks = new ArrayList<Ask>();
           ResultSet rs = DbBean.executeSql("select * from ask");
           while (rs.next()){
-              String stock = rs.getString("stock");
+              String stock = rs.getString("stockName");
               int price = rs.getInt("price");
               String userID = rs.getString("userID");
               Date askDate = rs.getTimestamp("askDate");
@@ -508,14 +535,12 @@ public class ExchangeBean {
   
   private void updateLatestPrice(String stock,int price){
       try {
-          ResultSet rs = DbBean.executeSql(String.format("UPDATE stock SET price = '%s' WHERE stock = '%s'",price,stock));
-          if (rs == null){
-            executeInsertPrice(stock,price);//if stock is not found, insert new value for the stock
-          }
+          DbBean.executeUpdate(String.format("UPDATE stock SET price = '%s' WHERE stockName = '%s'",price,stock));
       } catch (ClassNotFoundException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (SQLException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+          executeInsertPrice(stock,price);//if stock is not found, insert new value for the stock
       } catch (NamingException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
@@ -533,11 +558,13 @@ public class ExchangeBean {
   // based on the MatchedTransaction object passed in
   public int getLatestPrice(String stock) {
       try {
-          ResultSet rs = DbBean.executeSql(String.format("select price from stock WHERE stock = '%s'",stock));
+          ResultSet rs = DbBean.executeSql(String.format("select * from stock WHERE stockName = '%s'",stock));
           if (rs == null){
             executeInsertPrice(stock,-1);
           }
-          return rs.getInt("price");
+          if (rs.next()){
+            return rs.getInt("price");
+          }
       } catch (ClassNotFoundException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (SQLException ex) {
@@ -571,7 +598,7 @@ public class ExchangeBean {
   
   private void deleteAsk(Ask ask){
       try {
-          DbBean.executeUpdate(String.format("delete from ask where stock = '%s' and price = '%s' and userID = '%s' and askDate = '%s'",
+          DbBean.executeUpdate(String.format("delete from ask where stockName = '%s' and price = '%s' and userID = '%s' and askDate = '%s'",
                   ask.getStock(),ask.getPrice(),ask.getUserId(),new Timestamp(ask.getDate().getTime())));
       }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
@@ -584,7 +611,7 @@ public class ExchangeBean {
   
   private void deleteBid(Bid bid){
       try {
-          DbBean.executeUpdate(String.format("delete from bid where stock = '%s' and price = '%s' and userID = '%s' and bidDate = '%s'",
+          DbBean.executeUpdate(String.format("delete from bid where stockName = '%s' and price = '%s' and userID = '%s' and bidDate = '%s'",
                   bid.getStock(),bid.getPrice(),bid.getUserId(),new Timestamp(bid.getDate().getTime())));
       }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
@@ -597,7 +624,7 @@ public class ExchangeBean {
 
     private void executeInsertPrice(String stock, int price) {
         try{
-            DbBean.executeUpdate(String.format("INSERT INTO stock (stock,price) VALUES ('%s','%s')",stock,price));
+            DbBean.executeUpdate(String.format("INSERT INTO stock (stockName,price) VALUES ('%s','%s')",stock,price));
         }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }catch(ClassNotFoundException ex){
@@ -608,11 +635,10 @@ public class ExchangeBean {
     }
     
     private void executeInsertMatchedTransaction(MatchedTransaction m){
-        String insertValueSQL = "INSERT INTO matches (bidPrice,bidUserID,bidDate,askPrice,askUserID,askDate,matchDate,price,stock) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s')";
         Ask ask = m.getAsk();
         Bid bid = m.getBid();
         try{
-            DbBean.executeUpdate(String.format(insertValueSQL, bid.getPrice(),bid.getUserId(),
+            DbBean.executeUpdate(String.format("INSERT INTO matches (bidPrice,bidUserID,bidDate,askPrice,askUserID,askDate,matchDate,price,stockName) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s')", bid.getPrice(),bid.getUserId(),
                     new Timestamp(bid.getDate().getTime()),ask.getPrice(),ask.getUserId(),
                     new Timestamp(ask.getDate().getTime()),new Timestamp(m.getDate().getTime()),
                     m.getPrice(),m.getStock()));
