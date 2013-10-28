@@ -38,8 +38,8 @@ CREATE TABLE bid (
   PRIMARY KEY (stockName,price,userID,bidDate)
 ); 
 
-DROP TABLE IF EXISTS matches;
-CREATE TABLE matches (
+DROP TABLE IF EXISTS matchedTransactionDB;
+CREATE TABLE matchedTransactionDB (
 	id bigint not null auto_increment,
 	bidPrice int not null,
 	bidUserID varchar(50) not null,

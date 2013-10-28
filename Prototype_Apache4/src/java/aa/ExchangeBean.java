@@ -120,7 +120,7 @@ public class ExchangeBean {
       String insertValueSQL = "INSERT INTO " + logTableName + " (logStatement) VALUES ('%s')";
       try{
           String sqlStmt = String.format(insertValueSQL,logStatement);
-          DbBean.executeUpdate(sqlStmt); 
+          System.out.println("logTableName > " + logStatement.length() + "LENGTH OF STMT" + logStatement + "" + DbBean.executeUpdate(sqlStmt)); 
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
       }catch(ClassNotFoundException e){
@@ -271,7 +271,7 @@ public class ExchangeBean {
 
   // call this to append all rejected buy orders to log file
   private void logRejectedBuyOrder(Bid b) {
-      String bidMessage = b.toString() + "\n";
+      String bidMessage = b.toString();
     try {
       File rejectedLogFile = new File(REJECTED_BUY_ORDERS_LOG_FILE);
       File parent = rejectedLogFile.getParentFile();
@@ -279,25 +279,27 @@ public class ExchangeBean {
           //Take care of no path
           throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
       }
-      PrintWriter outFile = new PrintWriter(rejectedLogFile);
-      outFile.append(bidMessage);
-      outFile.close();
+      insertLog("rejectedLog",bidMessage);
+      BufferedWriter out = new BufferedWriter(new FileWriter(rejectedLogFile,true));
+      out.write(bidMessage);
+      out.newLine();
+      out.flush();
+      out.close();
     } catch (IOException e) {
       // If Java has no admin rights n cannot write to hard-disk temp files
       System.out.println("IO EXCEPTIOn: Cannot write to file");
-      logRelativeFilePath(REJECTED_BUY_ORDERS_LOG_FILE.split("\\")[REJECTED_BUY_ORDERS_LOG_FILE.length()-1],b.toString());
+      logRelativeFilePath(REJECTED_BUY_ORDERS_LOG_FILE.split("\\")[REJECTED_BUY_ORDERS_LOG_FILE.length()-1],b.toString()+"\n");
       e.printStackTrace();
     } catch (Exception e) {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
     }
-    insertLog("rejectedLog",bidMessage);
   }
 
   // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
   private void logMatchedTransactions() {
-    
+      String transactionMessage = "";
       try {
         File matchedFile = new File(MATCH_LOG_FILE);
         
@@ -306,19 +308,21 @@ public class ExchangeBean {
           //Take care of no path
           throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
       }
-        PrintWriter outFile = new PrintWriter(matchedFile);
-      ArrayList<MatchedTransaction> transactions = new ArrayList<MatchedTransaction>();
+      BufferedWriter out = new BufferedWriter(new FileWriter(matchedFile,true));
+      ArrayList<MatchedTransaction> transactions = getAllMatchedTransactions();
       for (MatchedTransaction m : transactions) {
-        String transactionMessage = m.toString();
-        outFile.append(transactionMessage + "\n");
-        insertLog("matchedLog",transactionMessage);
+        String message = m.toString();
+        insertLog("matchedLog",message);
+        transactionMessage += message + "\n";
       }
-      clearTable("matches"); // clean this out
-      outFile.close();
+      out.write(transactionMessage);
+      out.newLine();
+      clearTable("matchedTransactionDB"); // clean this out
+      out.close();
     } catch (IOException e) {
       // Think about what should happen here...
       System.out.println("IO EXCEPTIOn: Cannot write to file");
-      logRelativeFilePath(MATCH_LOG_FILE.split("\\")[MATCH_LOG_FILE.length()-1],"error to be handled");
+      logRelativeFilePath(MATCH_LOG_FILE.split("\\")[MATCH_LOG_FILE.length()-1],transactionMessage);
       e.printStackTrace();
     } catch (Exception e) {
       // Think about what should happen here...
@@ -485,7 +489,7 @@ public class ExchangeBean {
   public ArrayList<MatchedTransaction> getAllMatchedTransactions () {
       try {
           ArrayList<MatchedTransaction> transactions = new ArrayList<MatchedTransaction>();
-          ResultSet rs = DbBean.executeSql("select * from matches");
+          ResultSet rs = DbBean.executeSql("select * from matchedTransactionDB");
           while (rs.next()){
               int bidPrice = rs.getInt("bidPrice");
               String bidUserId = rs.getString("bidUserID");
@@ -638,10 +642,15 @@ public class ExchangeBean {
         Ask ask = m.getAsk();
         Bid bid = m.getBid();
         try{
-            DbBean.executeUpdate(String.format("INSERT INTO matches (bidPrice,bidUserID,bidDate,askPrice,askUserID,askDate,matchDate,price,stockName) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s')", bid.getPrice(),bid.getUserId(),
+            System.out.println(String.format("INSERT INTO matchedtransactiondb (id,bidPrice,bidUserID,bidDate,askPrice,askUserID,askDate,matchDate,price,stockName) VALUES (0,'%s','%s','%s','%s','%s','%s','%s','%s','%s')", bid.getPrice(),bid.getUserId(),
                     new Timestamp(bid.getDate().getTime()),ask.getPrice(),ask.getUserId(),
                     new Timestamp(ask.getDate().getTime()),new Timestamp(m.getDate().getTime()),
                     m.getPrice(),m.getStock()));
+            int i  = DbBean.executeUpdate(String.format("INSERT INTO matchedtransactiondb (id,bidPrice,bidUserID,bidDate,askPrice,askUserID,askDate,matchDate,price,stockName) VALUES (0,'%s','%s','%s','%s','%s','%s','%s','%s','%s')", bid.getPrice(),bid.getUserId(),
+                    new Timestamp(bid.getDate().getTime()),ask.getPrice(),ask.getUserId(),
+                    new Timestamp(ask.getDate().getTime()),new Timestamp(m.getDate().getTime()),
+                    m.getPrice(),m.getStock()));
+            System.out.println("match insert result > " + i);
         }catch(SQLException ex){
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }catch(ClassNotFoundException ex){
@@ -659,7 +668,7 @@ public class ExchangeBean {
           if (!file.exists()){
               file.createNewFile();
           }
-          PrintWriter outFile = new PrintWriter(file);
+          PrintWriter outFile = new PrintWriter(new FileWriter(file,true));
           outFile.append(stringMessage);
           outFile.close();
       } catch (URISyntaxException ex) {
