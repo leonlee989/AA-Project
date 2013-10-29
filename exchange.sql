@@ -8,7 +8,7 @@ CREATE TABLE credit (
 	credit_limit int not null,
 	
   PRIMARY KEY (userid)
-); 
+) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS stock;
 CREATE TABLE stock (
@@ -16,7 +16,7 @@ CREATE TABLE stock (
 	price int not null,
 	
   PRIMARY KEY (stockName)
-); 
+) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS ask;
 CREATE TABLE ask (
@@ -26,7 +26,7 @@ CREATE TABLE ask (
 	askDate TimeStamp not null,
 	
   PRIMARY KEY (stockName,price,userID,askDate)
-); 
+) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS bid;
 CREATE TABLE bid (
@@ -36,7 +36,7 @@ CREATE TABLE bid (
 	bidDate TimeStamp not null,
 	
   PRIMARY KEY (stockName,price,userID,bidDate)
-); 
+) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS matchedTransactionDB;
 CREATE TABLE matchedTransactionDB (
@@ -52,7 +52,7 @@ CREATE TABLE matchedTransactionDB (
 	stockName varchar(10) not null,
 	
   PRIMARY KEY (id)
-); 
+) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS rejectedLog;
 CREATE TABLE rejectedLog (
@@ -60,7 +60,7 @@ CREATE TABLE rejectedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
-);
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS matchedLog;
 CREATE TABLE matchedLog (
@@ -68,7 +68,7 @@ CREATE TABLE matchedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
-);
+) ENGINE=NDBCLUSTER;
 
 INSERT INTO stock (stockName,price) VALUES ('smu',-1);
 INSERT INTO stock (stockName,price) VALUES ('nus',-1);
