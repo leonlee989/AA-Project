@@ -262,7 +262,7 @@ public class ExchangeBean {
       //creditRemaining.put(b.getUserId(), newRemainingCredit);
       
      //Update the credit limit in the database. #SD#
-      CallableStatement cs = StoredProcedure.connection.prepareCall("{call UPDATE_CREDIT_LIMIT(?)}");
+      CallableStatement cs = StoredProcedure.connection.prepareCall("{call UPDATE_CREDIT_LIMIT(?,?)}");
       cs.setInt(1, newRemainingCredit);
       cs.setString(2,  b.getUserId());
       cs.executeQuery();
@@ -577,7 +577,7 @@ public class ExchangeBean {
   private void clearTable(String tableName){
       try {
           try {
-              DbBean.executeSql("delete from " +tableName);
+              DbBean.executeUpdate("delete from " +tableName);
           } catch (NamingException ex) {
               Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
           } catch (ClassNotFoundException ex){
@@ -587,7 +587,7 @@ public class ExchangeBean {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
           try {
               DbBean.executeUpdate("SET SQL_SAFE_UPDATES=0;");
-              DbBean.executeSql("delete from " +tableName);
+              DbBean.executeUpdate("delete from " +tableName);
           }catch(SQLException ex1) {
               Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex1);
           }catch(NamingException ex2){
