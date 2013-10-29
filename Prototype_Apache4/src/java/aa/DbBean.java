@@ -23,11 +23,11 @@ import javax.naming.NamingException;
 public class DbBean {
 
     // change the dbURL if necessary.
-    private static String dbDriver = "com.mysql.jdbc.Driver";
+    private static String dbDriver = "mongodb.jdbc.MongoDriver";
     private static Connection dbConnection;
-    static String dbURL = "jdbc:mysql://localhost:3306/exchange";
-    static String dbUser = "root";
-    static String dbPassword = "root";
+    static String dbURL = null;
+    //static String dbUser = "root";
+    //static String dbPassword = "root";
     //Read JDBC parameters from web.xml
     
     private static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
@@ -37,13 +37,13 @@ public class DbBean {
             // connects to the database using root. change your database id/password here if necessary    
             Context env = (Context) new InitialContext().lookup("java:comp/env");
             dbURL = (String) env.lookup("dbURL");
-            dbUser = (String) env.lookup("dbUser");
-            dbPassword = (String) env.lookup("dbPassword");
+            //dbUser = (String) env.lookup("dbUser");
+            //dbPassword = (String) env.lookup("dbPassword");
 
         
             Class.forName(dbDriver);
             // login credentials to your MySQL server
-            dbConnection = DriverManager.getConnection(dbURL, dbUser, dbPassword);
+            dbConnection = DriverManager.getConnection(dbURL);
             return true;
         } else {
             return true;

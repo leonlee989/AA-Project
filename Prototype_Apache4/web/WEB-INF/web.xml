@@ -11,8 +11,9 @@
     <env-entry>
         <env-entry-name>dbURL</env-entry-name>
         <env-entry-type>java.lang.String</env-entry-type>        
-        <env-entry-value>jdbc:mysql://localhost:3306/exchange</env-entry-value>
+        <env-entry-value>jdbc:mongo://192.168.0.10/exchange</env-entry-value>
     </env-entry>
+    <!--
     <env-entry>
         <env-entry-name>dbUser</env-entry-name>
         <env-entry-type>java.lang.String</env-entry-type>        
@@ -23,4 +24,5 @@
         <env-entry-type>java.lang.String</env-entry-type>        
         <env-entry-value>root</env-entry-value>
     </env-entry>
+    -->
 </web-app>
