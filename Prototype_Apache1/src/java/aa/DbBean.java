@@ -6,9 +6,12 @@ package aa;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -22,12 +25,12 @@ public class DbBean {
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";
     private static Connection dbConnection;
-    static String dbURL = null;
-    static String dbUser = null;
-    static String dbPassword = null;
+    static String dbURL = "jdbc:mysql://localhost:3306/exchange";
+    static String dbUser = "root";
+    static String dbPassword = "root";
     //Read JDBC parameters from web.xml
     
-    private static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
+    public static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
 
         if (dbConnection == null || dbConnection.isClosed()) {
             
@@ -61,6 +64,15 @@ public class DbBean {
         Statement dbStatement = dbConnection.createStatement();
         return dbStatement.executeQuery(sql);
     }
+    
+    public static ResultSet executeSql(PreparedStatement stmt){
+        try {
+            return stmt.executeQuery();
+        } catch (SQLException ex) {
+            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
     /*
      * Execute the update statement and returns the # of affected rows.
      */
@@ -83,5 +95,9 @@ public class DbBean {
         if (dbConnection != null && !dbConnection.isClosed()) {
             dbConnection.close();
         }
+    }
+    
+    public static Connection getDbConnection(){
+        return dbConnection;
     }
 }

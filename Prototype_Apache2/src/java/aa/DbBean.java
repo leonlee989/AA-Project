@@ -30,7 +30,7 @@ public class DbBean {
     static String dbPassword = "root";
     //Read JDBC parameters from web.xml
     
-    private static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
+    public static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
 
         if (dbConnection == null || dbConnection.isClosed()) {
             

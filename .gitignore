@@ -6,7 +6,8 @@
 /Prototype_Apache3/nbproject/
 /Prototype_Apache4/dist/
 /Prototype_Apache4/build/
-/Prototype_Apache4/nbproject/
+/Prototype_Apache5/dist/
+/Prototype_Apache5/build/
 /Prototype_Apache2/build/
 /Prototype_Apache2/dist/
 /Prototype_Apache2/nbproject/
@@ -17,3 +18,4 @@ nginx-1.2.3/conf/nginx.conf
 /Prototye_node/node_modules/
 /Prototye_node_Working Copy/node_modules/
 .metadata/
+/Prototype_Apache5/dist/
