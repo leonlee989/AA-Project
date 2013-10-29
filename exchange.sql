@@ -15,7 +15,7 @@ CREATE TABLE stock (
 	stockName varchar(10) not null,
 	price int not null,
 	
-  PRIMARY KEY (stockName) INDEX price (price)
+  PRIMARY KEY (stockName)
 ) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS ask;
@@ -25,7 +25,7 @@ CREATE TABLE ask (
 	userID varchar(50) not null,
 	askDate TimeStamp not null,
 	
-  PRIMARY KEY (stockName,price,userID,askDate) INDEX (price,askDate)
+  PRIMARY KEY (stockName,price,userID,askDate)
 ) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS bid;
@@ -35,7 +35,7 @@ CREATE TABLE bid (
 	userID varchar(50) not null,
 	bidDate TimeStamp not null,
 	
-  PRIMARY KEY (stockName,price,userID,bidDate) INDEX (price,bidDate)
+  PRIMARY KEY (stockName,price,userID,bidDate)
 ) ENGINE=NDBCLUSTER; 
 
 DROP TABLE IF EXISTS matchedTransactionDB;
