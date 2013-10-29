@@ -17,7 +17,14 @@ public class Ask {
     this.userId = userId;
     this.date = new Date();
   }
-
+  
+  public Ask(String stock,int price,String userId,Date date){
+      this.stock = stock;
+      this.price = price;
+      this.userId = userId;
+      this.date = date;
+  }
+  
   // getters
   public String getStock() {
     return stock;
