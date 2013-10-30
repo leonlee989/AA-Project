@@ -354,14 +354,13 @@ public class ExchangeBean {
   // this method returns false if this buy order has been rejected because of a credit limit breach
   // it returns true if the bid has been successfully added
   public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception{
-    ArrayList<Bid> allBids = getAllBids();
-    ArrayList<Ask> allAsks = getAllAsks();
     // step 0: check if this bid is valid based on the buyer's credit limit
     boolean okToContinue = validateCreditLimit(newBid);
     if (!okToContinue){
       return false; 
     }
-
+    ArrayList<Bid> allBids = getAllBids();
+    ArrayList<Ask> allAsks = getAllAsks();
     // step 1: insert new bid into unfulfilledBids
     //INSERT IN RUN TIME ARRAYLIST
     allBids.add(newBid);
