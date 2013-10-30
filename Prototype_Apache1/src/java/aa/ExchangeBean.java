@@ -8,7 +8,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,20 +46,29 @@ public class ExchangeBean {
     // Reset the credit in database #SD#.
     clearTable("credit");
   }
-
+  
   // returns a String of unfulfilled bids for a particular stock
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
-    ArrayList<Bid> allBids = getAllBids();
-    String returnString = "";
-    for (int i = 0; i < allBids.size(); i++) {
-      Bid bid = allBids.get(i);
-      if (bid.getStock().equals(stock)) {
-        returnString += bid.toString() + "<br />";
+      String returnString = ""; 
+      try {
+          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_BIDS(?)}");
+          cs.setString(1,stock);
+          ResultSet rs = cs.executeQuery();
+            
+          while (rs.next()){
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date bidDate = rs.getTimestamp("bidDate");
+              Bid b = new Bid(stockName,price,userID,bidDate);
+              returnString += b.toString() + "<br />";
+          }
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    return returnString;
+      return returnString;
   }
 
   // returns a String of unfulfilled asks for a particular stock
@@ -86,6 +94,20 @@ public class ExchangeBean {
           // what should you do here??
       }
       return false; // failure due to exception
+  }
+  
+  private boolean checkIfAskExists(String stockName)throws SQLException{
+      CallableStatement cs = StoredProcedure.connection.prepareCall("{call CHECK_IF_ASK_EXISTS(?)}");
+      cs.setString(1, stockName);
+      ResultSet rs = cs.executeQuery();
+      return rs.next();
+  }
+  
+  private boolean checkIfBidExists(String stockName)throws SQLException{
+      CallableStatement cs = StoredProcedure.connection.prepareCall("{call CHECK_IF_BID_EXISTS(?)}");
+      cs.setString(1, stockName);
+      ResultSet rs = cs.executeQuery();
+      return rs.next();
   }
     
   private void insertBid(Bid bid){
@@ -135,15 +157,24 @@ public class ExchangeBean {
   }
     
   public String getUnfulfilledAsks(String stock) {
-    ArrayList<Ask> allAsks = getAllAsks();
-    String returnString = "";
-    for (int i = 0; i < allAsks.size(); i++) {
-      Ask ask = allAsks.get(i);
-      if (ask.getStock().equals(stock)) {
-        returnString += ask.toString() + "<br />";
+    String returnString = ""; 
+      try {
+          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_ASKS(?)}");
+          cs.setString(1,stock);
+          ResultSet rs = cs.executeQuery();
+            
+          while (rs.next()){
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date askDate = rs.getTimestamp("askDate");
+              Ask a = new Ask(stockName,price,userID,askDate);
+              returnString += a.toString() + "<br />";
+          }
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    return returnString;
+      return returnString;
   }
 
   // returns the highest bid for a particular stock
@@ -354,49 +385,34 @@ public class ExchangeBean {
   // this method returns false if this buy order has been rejected because of a credit limit breach
   // it returns true if the bid has been successfully added
   public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception{
-    ArrayList<Bid> allBids = getAllBids();
-    ArrayList<Ask> allAsks = getAllAsks();
     // step 0: check if this bid is valid based on the buyer's credit limit
+    String newBidStockName = newBid.getStock();
     boolean okToContinue = validateCreditLimit(newBid);
     if (!okToContinue){
       return false; 
     }
-
     // step 1: insert new bid into unfulfilledBids
-    //INSERT IN RUN TIME ARRAYLIST
-    allBids.add(newBid);
     //Update DB
     insertBid(newBid);
-    
 
-    // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
-    // count keeps track of the number of unfulfilled asks for this stock
-    //LOOP THROUGH ALL ASKS TO SEE IF CURRENT BID EXISTS
-    int count = 0;
-    for (int i = 0; i < allAsks.size(); i++) {
-      if (allAsks.get(i).getStock().equals(newBid.getStock())) {
-        count++;
-      }
-    }
-    if (count == 0) {
+    // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock
+    if (!checkIfAskExists(newBidStockName)) {
       return true; // no unfulfilled asks of the same stock
     }
 
     // step 3: identify the current/highest bid in unfulfilledBids of the same stock
     //LOOK IN DB FOR CURRENT HIGHEST BID
-    Bid highestBid = getHighestBid(newBid.getStock());
+    Bid highestBid = getHighestBid(newBidStockName);
 
     // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
     //LOOK IN DB FOR CURRENT LOWEST ASK
-    Ask lowestAsk = getLowestAsk(newBid.getStock());
+    Ask lowestAsk = getLowestAsk(newBidStockName);
 
     // step 5: check if there is a match.
     // A match happens if the highest bid is bigger or equal to the lowest ask
     if (highestBid.getPrice() >= lowestAsk.getPrice()) {
       // a match is found!
-      allBids.remove(highestBid);
       deleteBid(highestBid);
-      allAsks.remove(lowestAsk);
       deleteAsk(lowestAsk);
       // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
       MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
@@ -413,39 +429,29 @@ public class ExchangeBean {
   }
 
   // call this method immediatley when a new ask (selling order) comes in
-  public void placeNewAskAndAttemptMatch(Ask newAsk) {
-    ArrayList<Ask> allAsks = getAllAsks();
-    ArrayList<Bid> allBids = getAllBids();
+  public void placeNewAskAndAttemptMatch(Ask newAsk) throws SQLException{
+    String askStockName = newAsk.getStock();
     // step 1: insert new ask into unfulfilledAsks
-    allAsks.add(newAsk);
     //insert in DB ask
     insertAsk(newAsk);
     // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
     // count keeps track of the number of unfulfilled bids for this stock
-    int count = 0;
-    for (int i = 0; i < allBids.size(); i++) {
-      if (allBids.get(i).getStock().equals(newAsk.getStock())) {
-        count++;
-      }
-    }
-    if (count == 0) {
-      return; // no unfulfilled asks of the same stock
+    if (!checkIfBidExists(askStockName)){
+        return;
     }
 
     // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-    Bid highestBid = getHighestBid(newAsk.getStock());
+    Bid highestBid = getHighestBid(askStockName);
 
     // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-    Ask lowestAsk = getLowestAsk(newAsk.getStock());
+    Ask lowestAsk = getLowestAsk(askStockName);
 
 
     // step 5: check if there is a match.
     // A match happens if the lowest ask is <= highest bid
     if (lowestAsk.getPrice() <= highestBid.getPrice()) {
       // a match is found! Start removing from runtime & db
-      allBids.remove(highestBid);
       deleteBid(highestBid);
-      allAsks.remove(lowestAsk);
       deleteAsk(lowestAsk);
       // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
       MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
@@ -457,28 +463,6 @@ public class ExchangeBean {
       updateLatestPrice(match);
       logMatchedTransactions();
     }
-  }
-
-  public ArrayList<Bid> getAllBids(){
-      try {
-          ArrayList<Bid> bids = new ArrayList<Bid>();
-          ResultSet rs = DbBean.executeSql("select * from bid");
-          while (rs.next()){
-              String stock = rs.getString("stockName");
-              int price = rs.getInt("price");
-              String userID = rs.getString("userID");
-              Date bidDate = rs.getTimestamp("bidDate");
-              bids.add(new Bid(stock,price,userID,bidDate));
-          }
-          return bids;
-      } catch (ClassNotFoundException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (SQLException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (NamingException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      }
-      return null;
   }
   
   public ArrayList<MatchedTransaction> getAllMatchedTransactions () {
@@ -500,28 +484,6 @@ public class ExchangeBean {
               transactions.add(new MatchedTransaction(bid,ask,matchDate,price));
           }
           return transactions;
-      } catch (ClassNotFoundException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (SQLException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (NamingException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      }
-      return null;
-  } 
-  
-  public ArrayList<Ask> getAllAsks(){
-      try {
-          ResultSet rs = DbBean.executeSql("select * from ask");
-          ArrayList<Ask> asks = new ArrayList<Ask>();
-          while (rs.next()){
-              String stock = rs.getString("stockName");
-              int price = rs.getInt("price");
-              String userID = rs.getString("userID");
-              Date askDate = rs.getTimestamp("askDate");
-              asks.add(new Ask(stock,price,userID,askDate));
-          }
-          return asks;
       } catch (ClassNotFoundException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (SQLException ex) {

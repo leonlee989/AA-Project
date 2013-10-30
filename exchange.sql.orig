@@ -8,7 +8,11 @@ CREATE TABLE credit (
 	credit_limit int not null,
 	
   PRIMARY KEY (userid)
+<<<<<<< HEAD
+); 
+=======
 ) ; 
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS stock;
 CREATE TABLE stock (
@@ -16,7 +20,11 @@ CREATE TABLE stock (
 	price int not null,
 	
   PRIMARY KEY (stockName)
+<<<<<<< HEAD
+); 
+=======
 ) ; 
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS ask;
 CREATE TABLE ask (
@@ -26,7 +34,11 @@ CREATE TABLE ask (
 	askDate TimeStamp not null,
 	
   PRIMARY KEY (stockName,price,userID,askDate)
+<<<<<<< HEAD
+); 
+=======
 ) ; 
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS bid;
 CREATE TABLE bid (
@@ -36,7 +48,11 @@ CREATE TABLE bid (
 	bidDate TimeStamp not null,
 	
   PRIMARY KEY (stockName,price,userID,bidDate)
+<<<<<<< HEAD
+); 
+=======
 ) ; 
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS matchedTransactionDB;
 CREATE TABLE matchedTransactionDB (
@@ -52,7 +68,11 @@ CREATE TABLE matchedTransactionDB (
 	stockName varchar(10) not null,
 	
   PRIMARY KEY (id)
+<<<<<<< HEAD
+); 
+=======
 ) ; 
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS rejectedLog;
 CREATE TABLE rejectedLog (
@@ -60,7 +80,11 @@ CREATE TABLE rejectedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
+<<<<<<< HEAD
+);
+=======
 ) ;
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 DROP TABLE IF EXISTS matchedLog;
 CREATE TABLE matchedLog (
@@ -68,10 +92,14 @@ CREATE TABLE matchedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
+<<<<<<< HEAD
+);
+=======
 ) ;
 
 ALTER TABLE ask ADD INDEX askPriceDate(price,askDate);
 ALTER TABLE bid ADD INDEX bidPriceDate(price,bidDate);
+>>>>>>> 9b0941a649a45c6ee42222709f0a2a5732d69db6
 
 INSERT INTO stock (stockName,price) VALUES ('smu',-1);
 INSERT INTO stock (stockName,price) VALUES ('nus',-1);
