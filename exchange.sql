@@ -70,6 +70,14 @@ CREATE TABLE matchedLog (
 	PRIMARY KEY(id)
 ) ;
 
+DROP TABLE IF EXISTS backOfficeLog;
+CREATE TABLE backOfficeLog(
+	id bigint not null auto_increment,
+	logStatement varchar(500),
+	
+	PRIMARY KEY(id)
+);
+
 ALTER TABLE ask ADD INDEX askPriceDate(price,askDate);
 ALTER TABLE bid ADD INDEX bidPriceDate(price,bidDate);
 
@@ -95,6 +103,12 @@ DROP PROCEDURE IF EXISTS CHECK_IF_ASK_EXISTS;
 DROP PROCEDURE IF EXISTS CHECK_IF_BID_EXISTS;
 DROP PROCEDURE IF EXISTS GET_FILTERED_ASKS;
 DROP PROCEDURE IF EXISTS GET_FILTERED_BIDS;
+DROP PROCEDURE IF EXISTS INSERT_BACKOFFICE_LOG;
+DROP PROCEDURE IF EXISTS CHECK_IF_BACKOFFICEMESSAGE_EXISTS;
+DROP PROCEDURE IF EXISTS DUMP_FROM_BACKOFFICE;
+DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
+DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
+
 
 DELIMITER $$
 			
@@ -106,6 +120,21 @@ DELIMITER $$
 			CREATE PROCEDURE GET_FILTERED_BIDS(IN stockName varchar(10))
 				BEGIN
 					select * from bid WHERE bid.stockName = stockName;
+				END $$
+			
+			CREATE PROCEDURE CHECK_IF_BACKOFFICEMESSAGE_EXISTS()
+				BEGIN
+					select 1 from backOfficeLog LIMIT 1;
+				END $$
+			
+			CREATE PROCEDURE DUMP_FROM_BACKOFFICE()
+				BEGIN
+					select backOfficeLog.logStatement from backOfficeLog;
+				END $$
+				
+			CREATE PROCEDURE CLEAR_BACKOFFICE()
+				BEGIN
+					truncate table backOfficeLog;
 				END $$
 			
 			CREATE PROCEDURE CHECK_IF_ASK_EXISTS(IN stockName varchar(10))
@@ -133,6 +162,11 @@ DELIMITER $$
 					update credit set credit.credit_limit= credit_limit where credit.userid=userid;
 				END $$
 			
+			CREATE PROCEDURE DELETE_BACKOFFICELOG(IN logStatement varchar(500))
+				BEGIN
+					delete from where backOfficeLog.logstatement  = logStatement ;
+				END $$
+			
 			CREATE PROCEDURE DELETE_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
 				BEGIN
 					delete from bid where bid.stockName = stockName and bid.price = price and bid.userID = userID and bid.bidDate = bidDate;
@@ -153,6 +187,11 @@ DELIMITER $$
 			CREATE PROCEDURE INSERT_ASK(IN stockName varchar(10), IN price int, IN userID varchar(50), IN askDate TimeStamp)
 				BEGIN
 					insert into ask (ask.stockName, ask.price, ask.userID, ask.askDate) VALUES (stockName, price, userID, askDate);
+				END $$
+			
+			CREATE PROCEDURE INSERT_BACKOFFICE_LOG(IN logStatement varchar(500))
+				BEGIN
+					insert into backOfficeLog (backOfficeLog.logStatement) VALUES (logStatement);
 				END $$
 			
 			CREATE PROCEDURE INSERT_MATCHED_LOG(IN logStatement varchar(500))

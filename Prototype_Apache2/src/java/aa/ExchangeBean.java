@@ -9,17 +9,23 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.naming.NamingException;
 import thread.BackOfficeThread;
  
 public class ExchangeBean {
-  private static final int NTHREADS = 15;
-  private static final ExecutorService executor = Executors.newCachedThreadPool(Executors.defaultThreadFactory());
+  private static final int NTHREADS = 100;
+  //5 core threads kept alive, 100 max threads,
+  private static final ExecutorService executor = new ThreadPoolExecutor(5,NTHREADS,60L,TimeUnit.SECONDS,new SynchronousQueue<Runnable>());
+  
   // location of log files - change if necessary
   private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
   private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
@@ -34,7 +40,7 @@ public class ExchangeBean {
   // the remaining credit limit should not go below 0 under any circumstance!
   // --- Credit is now stored in database. ----
   //private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
-
+  
   private Connection connection = DbBean.getDbConnection();
   
   // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
@@ -80,10 +86,18 @@ public class ExchangeBean {
   // returns an empty string if no such ask
   // asks are separated by <br> for display on HTML page
   
-  public void sendToBackOffice(String txnDescription){
-        BackOfficeThread bot = new BackOfficeThread(txnDescription);
-        Thread t = new Thread(bot);
-        t.start();
+  public boolean sendToBackOffice(String txnDescription){
+      try {
+          BackOfficeThread bot = new BackOfficeThread(txnDescription,executor);
+          Future<Boolean> status = executor.submit(bot);
+          boolean finalStatus = status.get();
+          return finalStatus;
+      } catch (InterruptedException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } catch (ExecutionException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      }
+      return false;
   }
   
   private boolean checkIfAskExists(String stockName)throws SQLException{
