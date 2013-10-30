@@ -94,6 +94,26 @@ DROP PROCEDURE IF EXISTS UPDATE_STOCK_PRICE;
 
 DELIMITER $$
 			
+			CREATE PROCEDURE CHECK_IF_ASK_EXISTS(IN stockName varchar(10))
+				BEGIN
+					select 1 from ask WHERE ask.stockName = stockName;
+				END $$
+				
+			CREATE PROCEDURE CHECK_IF_BID_EXISTS(IN stockName varchar(10))
+				BEGIN
+					select 1 from bid WHERE bid.stockName = stockName;
+				END $$
+			
+			CREATE PROCEDURE GET_FILTERED_ASKS(IN stockName varchar(10))
+				BEGIN
+					select * from ask WHERE ask.stockName = stockName;
+				END $$
+			
+			CREATE PROCEDURE GET_FILTERED_BIDS(IN stockName varchar(10))
+				BEGIN
+					select from bid WHERE bid.stockName = stockName;
+				END $$
+			
 			CREATE PROCEDURE GET_HIGHEST_BID(IN stockName varchar(10))
 				BEGIN
 					select * from bid WHERE bid.stockName = stockName order by bid.price DESC, bid.bidDate ASC LIMIT 1;
@@ -121,7 +141,9 @@ DELIMITER $$
 			
 			CREATE PROCEDURE INSERT_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
 				BEGIN
+					START TRANSACTION;
 					insert into bid (bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (stockName, price, userID, bidDate);
+					Commit;
 				END $$
 			
 			CREATE PROCEDURE INSERT_ASK(IN stockName varchar(10), IN price int, IN userID varchar(50), IN askDate TimeStamp)
@@ -157,7 +179,6 @@ DELIMITER $$
 			-- Part of this procedure is to handle the locking of the insert statement
 			CREATE PROCEDURE INSERT_MATCHED_TRANSACTION(IN bidPrice int, IN bidUserID varchar(50), IN bidDate TimeStamp, IN askPrice int, IN askUserID varchar(50), IN askDate TimeStamp, IN matchDate TimeStamp, IN price int, IN stockName varchar(10))
 				BEGIN
-				
 					insert into matchedtransactiondb (matchedtransactiondb.id, matchedtransactiondb.bidPrice, matchedtransactiondb.bidUserID, matchedtransactiondb.bidDate, matchedtransactiondb.askPrice, matchedtransactiondb.askUserID, matchedtransactiondb.askDate, matchedtransactiondb.matchDate, matchedtransactiondb.price, matchedtransactiondb.stockName)  VALUES (0,bidPrice, bidUserID, bidDate, askPrice, askUserID, askDate, matchDate, price, stockName);
 				END $$
 			
