@@ -573,7 +573,7 @@ public class ExchangeBean {
       }
     return -1;//no such stock
   }
-  
+  /*
   private void clearTable(String tableName){
       try {
           try {

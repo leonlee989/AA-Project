@@ -80,13 +80,13 @@ exports.processBuy = function(req, res) {
 	var tempBidPrice = req.session.tempBidPrice = req.param('bidprice');
 	
 	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
-	var bidIsAccepted = exchangeBean.placeNewBidAndAttemptMatch(newBid);
-	
-	if (bidIsAccepted) {
-		res.redirect("/buySuccess");
-	} else {
-		res.redirect("/buyFail");
-	}
+	exchangeBean.placeNewBidAndAttemptMatch(newBid, function(bidIsAccepted) {
+		if (bidIsAccepted) {
+			res.redirect("/buySuccess");
+		} else {
+			res.redirect("/buyFail");
+		}
+	});
 }
 
 exports.buySuccess = function(req, res) {
@@ -156,18 +156,22 @@ exports.current = function(req, res) {
 }
 
 exports.viewOrders = function(req, res) {
-	res.render('viewOrders.ejs', { 
-		smuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("smu"),
-		smuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("smu"),
-		
-		nusUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("nus"),
-		nusUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("nus"),
-		
-		ntuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("ntu"),
-		ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu"),
-		
-		AllCreditRemainingForDisplay: exchangeBean.getAllCreditRemainingForDisplay()
+	exchangeBean.getAllCreditRemainingForDisplay(function(value) {
+		res.render('viewOrders.ejs', { 
+
+			smuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("smu"),
+			smuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("smu"),
+			
+			nusUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("nus"),
+			nusUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("nus"),
+			
+			ntuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("ntu"),
+			ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu"),
+			
+			AllCreditRemainingForDisplay: value
+		});
 	});
+	
 }
 
 exports.endTradingDay = function(req, res) {
