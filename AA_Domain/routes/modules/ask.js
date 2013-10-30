@@ -1,8 +1,8 @@
-function Ask(stock, price, userId) {
+function Ask(stock, price, userId, date) {
 	this.stock = stock;
 	this.price = price;
 	this.userId = userId;
-	this.date = new Date();
+	this.date = date;
 }
 
 Ask.prototype.getStock = function() {

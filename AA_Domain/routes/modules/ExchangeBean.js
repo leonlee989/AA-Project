@@ -16,7 +16,7 @@ function ExchangeBean() {
 
 	// used for keeping track of fulfiling asks and bids in the system
 	// once asks or bid are matched, they must be removed from these arrayllists.
-	this.unfulfilledAsks = new Array();
+	//this.unfulfilledAsks = new Array();
 	this.unfulfilledBids = new Array();
 
 	// used to keep track of all matched transactions (asks/bids) in the system
@@ -49,7 +49,7 @@ function ExchangeBean() {
 	this.latestPriceForNtu = -1;
 	
 	//dump all unfulfilled buy and sell orders
-	this.unfulfilledAsks = [];
+	db.executeUpdate("delete from ask");
 	this.unfulfilledBids = [];
 	
 	// reset all credit limits of users
@@ -77,16 +77,24 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock) {
  // return a String of unfilled asks for a particular stock
  // returns an empty string if no such ask
  // asks are separated by <br> for display on HTML page
- ExchangeBean.prototype.getUnfulfilledAsks = function(stock) {
+ ExchangeBean.prototype.getUnfulfilledAsks = function(stock, callback) {
 	var returnString = "";
-	for (var i = 0; i < this.unfulfilledAsks.length; i++) {
-		var ask = this.unfulfilledAsks[i];
-		if (ask.getStock() == stock) {
-			returnString = returnString + ask.toString() + "<br/>";
-		}		
-	}
+	//for (var i = 0; i < this.unfulfilledAsks.length; i++) {
+		//var ask = this.unfulfilledAsks[i];
+		//if (ask.getStock() == stock) {
+			//returnString = returnString + ask.toString() + "<br/>";
+		//}		
+	//}
 	
-	return returnString;
+	db.executeSql("select * from ask", function(value) {
+		value.forEach(function(result) {
+			if (results.stockName == stock) {
+				returnString += JSON.stringify(results);
+			}			
+		});
+		
+		callback(returnString);
+	});
  }
  
 // returns the highest bid for a particular stock
@@ -136,28 +144,32 @@ ExchangeBean.prototype.getLowestAskPrice = function(stock) {
   
 // retrieve unfulfiled current (lowest) ask for a particular stock
 // returns null if there is no unfulfiled asks for this stock
-ExchangeBean.prototype.getLowestAsk = function(stock) {
-	var lowestAsk = new askModule.Ask(undefined, Number.MAX_VALUE, undefined);
-	for (var i = 0; i < this.unfulfilledAsks.length; i++) {
-		var ask = this.unfulfilledAsks[i];
-		
-		if (ask.getStock() == stock && ask.getPrice() <= lowestAsk.getPrice()) {
-			// there are 2 asks of the same ask amount, the earlier one is considered the highest ask
-			if (ask.getPrice() == lowestAsk.getPrice()) {
-				//compares dates
-				if (ask.getDate().getTime() < lowestAsk.getDate().getTime()) {
-					lowestAsk = ask;
-				}
-			}  else {
-				lowestAsk = ask;
-			}
-		}
-	}
+ExchangeBean.prototype.getLowestAsk = function(stock, callback) {
 	
-	if (lowestAsk.getUserId() === undefined) {
-		return undefined;
-	}
-	return lowestAsk;
+	var lowestAsk = new askModule.Ask(undefined, Number.MAX_VALUE, undefined, undefined);
+	
+	db.executeSql("select * from ask", function(results) {
+		results.forEach(function(result_Ask) {
+			
+			if (result_Ask.stockName == stock && result_Ask.price <= lowestAsk.getPrice()) {
+				// There are 2 sets of the same ask amount, the earlier one is considered the highest ask
+				if (result_Ask.price == lowestAsk.getPrice()) {
+					
+					if ((new Date(result_Ask.askDate)).toLocaleString() < lowestAsk.getDate().toLocaleString()) {
+						lowestAsk = new askModule.Ask(result_Ask.stockName, result_Ask.price, result_Ask.userID, new Date(result_Ask.askDate));
+					}
+				} else {
+					lowestAsk = new askModule.Ask(result_Ask.stockName, result_Ask.price, result_Ask.userID, new Date(result_Ask.askDate));
+				}
+			} 
+		});
+		
+		console.log("--------------------------------------->" + lowestAsk.getUserId());
+		if (lowestAsk.getUserId() === undefined) {
+			callback(undefined);
+		}
+		callback(lowestAsk);
+	});
 }
 
 ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
@@ -166,14 +178,14 @@ ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
 		// this buyer is not in the hash table yet. Hence create a new entry for him
 		//this.creditRemaining[buyerUserId] = this.DAILY_CREDIT_LIMIT_FOR_BUYERS;
 	//}
-	
+	var module = this;
 	db.executeSql("select credit_limit from credit where userid='" + buyerUserId + "'", function(value) {
-
-		if (value != undefined) {
-			console.log(JSON.stringify(value[0]));
+		
+		if (value != undefined && value != "") {
+			//console.log(JSON.stringify(value[0]));
 			callback(value[0].credit_limit);
 		} else {
-			db.executeUpdate("insert into credit (userid, credit_limit) values ('" + buyerUserId + "', " + this.DAILY_CREDIT_LIMIT_FOR_BUYERS + ")");
+			db.executeUpdate("insert into credit (userid, credit_limit) values ('" + buyerUserId + "', " + module.DAILY_CREDIT_LIMIT_FOR_BUYERS + ")");
 			db.executeSql("select credit_limit from credit where userid='" + buyerUserId + "'", function(value) {
 				callback(value[0].credit_limit);
 			});
@@ -268,47 +280,53 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 		
 		// step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
 		// count keeps track of the number of unfulfilled asks for this stock
-		var count = 0;
-		for (var i = 0; i < module.unfulfilledAsks.length; i++) {
-			if (module.unfulfilledAsks[i].getStock() == newBid.getStock()) {
-				count++;
+		db.executeSql("select count(*) as total from ask where stockName='" + newBid.getStock() + "'", function(results) {
+
+			if (results.total == 0) {
+				callback(true);
+				return;
 			}
-		}
-		if (count == 0) {
-			callback(true);
-			return;
-		}
-		
-		// step 3: identify the current/highest bid in unfulfilledBids of the same stock
-		var highestBid = module.getHighestBid(newBid.getStock());
-		
-		// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-		var lowestAsk = module.getLowestAsk(newBid.getStock());
-		
-		// step 5: check if there is a match.
-		// A match happens if the highest bid is bigger or equal to the lowest ask
-		if (highestBid.getPrice() >= lowestAsk.getPrice()) {
-			// a match is found
-			module.unfulfilledBids.splice(highestBid,1);
-			module.unfulfilledAsks.splice(lowestAsk,1);
-			// this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
-			var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-			module.matchedTransactions.push(match);
 			
-			// to be included here: inform Back Office Server of match
-			// to be done in v1.0
-			module.updateLatestPrice(match);
-			module.logMatchedTransactions();
-		}
-		callback(true); // this bid is acknowledged
-		return;
+			// step 3: identify the current/highest bid in unfulfilledBids of the same stock
+			var highestBid = module.getHighestBid(newBid.getStock());
+			
+			// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
+			module.getLowestAsk(newBid.getStock(), function(lowestAsk) {
+				
+				// step 5: check if there is a match.
+				// A match happens if the highest bid is bigger or equal to the lowest ask
+				if (highestBid.getPrice() >= lowestAsk.getPrice()) {
+					// a match is found
+					module.unfulfilledBids.splice(highestBid,1);
+					
+					db.executeUpdate("delete from ask where stockName='" + lowestAsk.getStock() + "' and price=" + lowestAsk.getPrice()
+						+ " and userID='" + lowestAsk.getUserId() + "' and askDate=" + lowestAsk.getDate().toLocaleString());
+						
+					// this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
+					var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
+					module.matchedTransactions.push(match);
+					
+					// to be included here: inform Back Office Server of match
+					// to be done in v1.0
+					module.updateLatestPrice(match);
+					module.logMatchedTransactions();
+				}
+				callback(true); // this bid is acknowledged
+				return;
+			
+			});
+		});
 	});
 }
 
 // call this method immediatley when a new ask (selling order) comes in
 ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk) {
+
+	var module = this;
+	
 	// step 1: insert new ask into unfulfilledAsks
-	this.unfulfilledAsks.push(newAsk);
+	db.executeUpdate("insert into ask (stockName, price, userID, askDate) values ('" + newAsk.getStock() + "', " + newAsk.getPrice() + ", '" + 
+		newAsk.getUserId() + "', '" + newAsk.getDate().toLocaleString() + "')");
 	
 	// step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
     // count keeps track of the number of unfulfilled bids for this stock
@@ -325,26 +343,27 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk) {
 	 // step 3: identify the current/highest bid in unfulfilledBids of the same stock
 	 var highestBid = this.getHighestBid(newAsk.getStock());
 	 
-	 // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-	 var lowestAsk = this.getLowestAsk(newAsk.getStock());
+	// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
+	this.getLowestAsk(newAsk.getStock(), function(lowestAsk) {
 	 
-	 // step 5: check if there is a match.
-    // A match happens if the lowest ask is <= highest bid
-	if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-		// a match is found		
-		this.unfulfilledBids.splice(this.unfulfilledBids.indexOf(highestBid), 1);
-		this.unfulfilledAsks.splice(this.unfulfilledAsks.indexOf(lowestAsk), 1);
-		
-		// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-		var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-		this.matchedTransactions.push(match);
-		
-		// to be included here: inform Back Office Server of match
-		// to be done in v1.0
-		this.updateLatestPrice(match);
-		this.logMatchedTransactions();
-	}
-	
+		 // step 5: check if there is a match.
+		// A match happens if the lowest ask is <= highest bid
+		if (lowestAsk.getPrice() <= highestBid.getPrice()) {
+			// a match is found		
+			module.unfulfilledBids.splice(module.unfulfilledBids.indexOf(highestBid), 1);
+			db.executeUpdate("delete from ask where stockName='" + lowestAsk.getStock() + "' and price=" + lowestAsk.getPrice()
+						+ " and userID='" + lowestAsk.getUserId() + "' and askDate=" + lowestAsk.getDate().toLocaleString());
+			
+			// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
+			var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
+			module.matchedTransactions.push(match);
+			
+			// to be included here: inform Back Office Server of match
+			// to be done in v1.0
+			module.updateLatestPrice(match);
+			module.logMatchedTransactions();
+		}
+	});
 	//return true;
 }
 

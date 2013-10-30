@@ -67,7 +67,7 @@ DBBean.prototype.executeUpdate = function(strSQL) {
 			console.log("Error in executing sql...");
 			return undefined;
 		} else {
-			console.log("Success in executinh sql...");
+			console.log("Success in executing sql...");
 			return results;
 		}
 	});
