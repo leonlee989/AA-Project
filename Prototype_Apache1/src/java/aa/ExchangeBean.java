@@ -51,15 +51,24 @@ public class ExchangeBean {
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
-    ArrayList<Bid> allBids = getAllBids();
-    String returnString = "";
-    for (int i = 0; i < allBids.size(); i++) {
-      Bid bid = allBids.get(i);
-      if (bid.getStock().equals(stock)) {
-        returnString += bid.toString() + "<br />";
+      String returnString = ""; 
+      try {
+          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_BIDS(?)}");
+          cs.setString(1,stock);
+          ResultSet rs = cs.executeQuery();
+            
+          while (rs.next()){
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date bidDate = rs.getTimestamp("bidDate");
+              Bid b = new Bid(stockName,price,userID,bidDate);
+              returnString += b.toString() + "<br />";
+          }
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    return returnString;
+      return returnString;
   }
 
   // returns a String of unfulfilled asks for a particular stock
@@ -148,15 +157,24 @@ public class ExchangeBean {
   }
     
   public String getUnfulfilledAsks(String stock) {
-    ArrayList<Ask> allAsks = getAllAsks();
-    String returnString = "";
-    for (int i = 0; i < allAsks.size(); i++) {
-      Ask ask = allAsks.get(i);
-      if (ask.getStock().equals(stock)) {
-        returnString += ask.toString() + "<br />";
+    String returnString = ""; 
+      try {
+          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_ASKS(?)}");
+          cs.setString(1,stock);
+          ResultSet rs = cs.executeQuery();
+            
+          while (rs.next()){
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String userID = rs.getString("userID");
+              Date askDate = rs.getTimestamp("askDate");
+              Ask a = new Ask(stockName,price,userID,askDate);
+              returnString += a.toString() + "<br />";
+          }
+      } catch (SQLException ex) {
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       }
-    }
-    return returnString;
+      return returnString;
   }
 
   // returns the highest bid for a particular stock
@@ -236,7 +254,6 @@ public class ExchangeBean {
 //    return creditRemaining.get(buyerUserId);
     
    //read the credit limit from database #SD#
-      System.out.println(StoredProcedure.connection);
    CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_USER_CREDIT_LIMIT(?)}");
    cs.setString(1, buyerUserId);
    ResultSet rs = cs.executeQuery();
@@ -447,28 +464,6 @@ public class ExchangeBean {
       logMatchedTransactions();
     }
   }
-
-  public ArrayList<Bid> getAllBids(){
-      try {
-          ArrayList<Bid> bids = new ArrayList<Bid>();
-          ResultSet rs = DbBean.executeSql("select * from bid");
-          while (rs.next()){
-              String stock = rs.getString("stockName");
-              int price = rs.getInt("price");
-              String userID = rs.getString("userID");
-              Date bidDate = rs.getTimestamp("bidDate");
-              bids.add(new Bid(stock,price,userID,bidDate));
-          }
-          return bids;
-      } catch (ClassNotFoundException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (SQLException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (NamingException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      }
-      return null;
-  }
   
   public ArrayList<MatchedTransaction> getAllMatchedTransactions () {
       try {
@@ -489,28 +484,6 @@ public class ExchangeBean {
               transactions.add(new MatchedTransaction(bid,ask,matchDate,price));
           }
           return transactions;
-      } catch (ClassNotFoundException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (SQLException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      } catch (NamingException ex) {
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-      }
-      return null;
-  } 
-  
-  public ArrayList<Ask> getAllAsks(){
-      try {
-          ResultSet rs = DbBean.executeSql("select * from ask");
-          ArrayList<Ask> asks = new ArrayList<Ask>();
-          while (rs.next()){
-              String stock = rs.getString("stockName");
-              int price = rs.getInt("price");
-              String userID = rs.getString("userID");
-              Date askDate = rs.getTimestamp("askDate");
-              asks.add(new Ask(stock,price,userID,askDate));
-          }
-          return asks;
       } catch (ClassNotFoundException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (SQLException ex) {
