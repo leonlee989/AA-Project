@@ -118,7 +118,7 @@ exports.processSell = function(req, res) {
 	var stock = req.session.stock = req.param('stock');
 	var tempAskPrice = req.session.tempAskPrice = req.param('askprice');
 	
-	var newAsk = new askModule.Ask(stock, tempAskPrice, userId);
+	var newAsk = new askModule.Ask(stock, tempAskPrice, userId, new Date());
 	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
 	res.redirect("/sellSuccess");
