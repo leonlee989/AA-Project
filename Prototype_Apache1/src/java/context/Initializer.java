@@ -24,7 +24,16 @@ import javax.servlet.ServletContextListener;
 public class Initializer implements ServletContextListener {
 
     public void contextInitialized(ServletContextEvent sce) {
-        System.out.println("Servlet Context is initialized....");
+        try {
+            DbBean.connect();
+            System.out.println("Servlet Context is initialized....");
+        } catch (ClassNotFoundException ex) {
+            Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NamingException ex) {
+            Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public void contextDestroyed(ServletContextEvent sce) {

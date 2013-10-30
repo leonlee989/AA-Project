@@ -236,6 +236,7 @@ public class ExchangeBean {
 //    return creditRemaining.get(buyerUserId);
     
    //read the credit limit from database #SD#
+      System.out.println(StoredProcedure.connection);
    CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_USER_CREDIT_LIMIT(?)}");
    cs.setString(1, buyerUserId);
    ResultSet rs = cs.executeQuery();
