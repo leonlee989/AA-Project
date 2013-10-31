@@ -52,6 +52,6 @@ public class Bid {
 
   // toString
   public String toString() {
-    return "stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
+    return "id: " + bidID + "stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
   }
 }

@@ -26,7 +26,7 @@ CREATE TABLE ask (
 	userID varchar(50) not null,
 	askDate TimeStamp not null,
 	
-  PRIMARY KEY (stockName,price,userID,askDate)
+  PRIMARY KEY (id)
 ) ; 
 
 DROP TABLE IF EXISTS bid;
@@ -37,7 +37,7 @@ CREATE TABLE bid (
 	userID varchar(50) not null,
 	bidDate TimeStamp not null,
 	
-  PRIMARY KEY (stockName,price,userID,bidDate)
+  PRIMARY KEY (id)
 ) ; 
 
 DROP TABLE IF EXISTS matchedTransactionDB;
@@ -166,7 +166,7 @@ DELIMITER $$
 			
 			CREATE PROCEDURE DELETE_BACKOFFICELOG(IN logStatement varchar(500))
 				BEGIN
-					delete from where backOfficeLog.logstatement  = logStatement ;
+					delete from backOfficeLog where backOfficeLog.logstatement  = logStatement ;
 				END $$
 			
 			CREATE PROCEDURE DELETE_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)

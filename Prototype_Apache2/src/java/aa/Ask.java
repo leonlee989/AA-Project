@@ -4,12 +4,20 @@ import java.util.Date;
 
 // represents an Ask (in a sell order)
 public class Ask {
-
+  private int askID;
   private String stock;
   private int price; // ask price
   private String userId; // user who made this sell order
   private Date date;
-
+  
+  public Ask(int id, String stock,int price,String userId,Date date){
+      this.askID = id;
+      this.stock = stock;
+      this.price = price;
+      this.userId = userId;
+      this.date = date;
+  }
+  
   // constructor
   public Ask(String stock, int price, String userId) {
     this.stock = stock;
@@ -44,6 +52,6 @@ public class Ask {
 
   // toString
   public String toString() {
-    return "stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
+    return "id: " + askID + ", stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
   }
 }

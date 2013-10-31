@@ -75,6 +75,7 @@ public class ExchangeBean {
           ResultSet rs = cs.executeQuery();
             
           while (rs.next()){
+              int id = rs.getInt("id");
               String stockName = rs.getString("stockName");
               int price = rs.getInt("price");
               String userID = rs.getString("userID");
@@ -158,6 +159,7 @@ public class ExchangeBean {
           ResultSet rs = cs.executeQuery();
             
           while (rs.next()){
+              int id = rs.getInt("id");
               String stockName = rs.getString("stockName");
               int price = rs.getInt("price");
               String userID = rs.getString("userID");
