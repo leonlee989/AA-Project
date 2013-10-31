@@ -1,0 +1,106 @@
+<!--
+    Document   : viewUnFulfilledOrders
+    Created on : Aug 30, 2012, 11:07:00 AM
+    Author     : the saboteur
+-->
+
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>Show Unfulfilled Orders</title>
+    </head>
+
+
+     <BODY>
+            <!-- unfulfilled bids of SMU -->
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>For SMU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Unfulfilled Bids (Buy Orders)</td>
+                        <td><%-smuUnfulfilledBidsForDisplay%></td>
+                    </tr>
+                    <tr>
+                        <td>Unfulfilled Asks (Sell Orders)</td>
+                        <td><%-smuUnfulfilledAsks%></td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <br/><br/>
+
+            <!-- unfulfilled bids of NUS -->
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>For NUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Unfulfilled Bids (Buy Orders)</td>
+                        <td><%-nusUnfulfilledBidsForDisplay%></td>
+                    </tr>
+                    <tr>
+                        <td>Unfulfilled Asks (Sell Orders)</td>
+                        <td><%-nusUnfulfilledAsks%></td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <br/><br/>
+
+            <!-- unfulfilled bids of NTU -->
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>For NTU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Unfulfilled Bids (Buy Orders)</td>
+                        <td><%-ntuUnfulfilledBidsForDisplay%></td>
+                    </tr>
+                    <tr>
+                        <td>Unfulfilled Asks (Sell Orders)</td>
+                        <td><%-ntuUnfulfilledAsks%></td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <br/><br/>
+
+            <!-- show remaining credit of each buyer -->
+            Remaining Credit of Each User
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Remaining credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <%-AllCreditRemainingForDisplay%>
+                </tbody>
+            </table>
+    <hr/>
+    Functions available:<br/>
+    <ul>
+        <li><a href="/buy">Buy</a></li>
+        <li><a href="/sell">Sell</a></li>
+        <li><a href="/logout">Log out</a></li>
+        <li><a href="/current">Current stats</a></li>
+        <li><a href="/viewOrders">Unfulfilled orders</a></li>
+    </ul>
+    </BODY>
+</html>

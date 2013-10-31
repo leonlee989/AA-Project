@@ -46,8 +46,8 @@ function ExchangeBean() {
  // bods are separated by <br> for display on HTML page
 ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock, callback) {
 	var returnString = "";
-	
-	db.executeSql("bid",  function(value) {
+
+	db.executeSql("bid", function(value) {
 		value.forEach(function(result) {
 			if (result.stockName == stock) {
 				returnString += JSON.stringify(result);
@@ -243,7 +243,7 @@ ExchangeBean.prototype.logMatchedTransactions = function(transaction) {
 	query.logStatement = transaction.toString();
 			
 	// Store in database
-	db.insertSql("matchedlog", query);
+	db.insertSql("matchedlog", query, function(value){});
 	
 	//Store in log file
 	fs.appendFile(log_File, transaction.toString() + "\n", function(err) {
@@ -290,77 +290,81 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 			bidDate : convertToTimeStamp(newBid.getDate())
 		};
 		
-		db.insertSql("bid", query1);
+		db.insertSql("bid", query1, function(results) {
 		
-		// step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
-		// count keeps track of the number of unfulfilled asks for this stock
-		query2 = {
-			stockName : newBid.getStock()
-		};
-		
-		db.countSql("ask", query2, function(results) {
-			console.log(JSON.stringify(results));
+			// step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
+			// count keeps track of the number of unfulfilled asks for this stock
+			query2 = {
+				stockName : newBid.getStock()
+			};
 			
-			if (results == 0) {
-				console.log("No transaction is matched");
-				callback(true);
-				return;
-			}
-			
-			// step 3: identify the current/highest bid in unfulfilledBids of the same stock
-			module.getHighestBid(newBid.getStock(), function(highestBid) {
-			
-				// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-				module.getLowestAsk(newBid.getStock(), function(lowestAsk) {
-					
-					// step 5: check if there is a match.
-					// A match happens if the highest bid is bigger or equal to the lowest ask
-					if (highestBid.getPrice() >= lowestAsk.getPrice()) {
-						// a match is found
-						query3 = { $and: [ 
-							{ stockName: highestBid.getStock() }, 
-							{ price: highestBid.getPrice() }, 
-							{ userID: highestBid.getUserId() }, 
-							{ bidDate: convertToTimeStamp(highestBid.getDate()) } 
-						] };
-						
-						db.removeOneQuerySql("bid", query3, callback);
-						
-						query4 = { $and: [ 
-							{ stockName: lowestAsk.getStock() }, 
-							{ price: lowestAsk.getPrice() }, 
-							{ userID: lowestAsk.getUserId() }, 
-							{ askDate: convertToTimeStamp(lowestAsk.getDate()) } 
-						] };
-						
-						db.removeOneQuerySql("ask", query4, callback);
-							
-						// this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
-						var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-						
-						query5 = {
-							bidPrice : highestBid.getPrice(),
-							bidUserID : highestBid.getUserId(),
-							bidDate : convertToTimeStamp(highestBid.getDate()),
-							askPrice : lowestAsk.getPrice(),
-							askUserID : lowestAsk.getUserId(),
-							askDate : convertToTimeStamp(lowestAsk.getDate()),
-							matchDate : convertToTimeStamp(match.getDate()), 
-							price : match.getPrice(), 
-							stockName : match.getStock()
-						};
-						db.insertSql("matchedtransactiondb", query5);
-						
-						// to be included here: inform Back Office Server of match
-						// to be done in v1.0
-						module.updateLatestPrice(match);
-						module.logMatchedTransactions(match);
-					}
-					
-					console.log("Transaction is matched");
-					callback(true); // this bid is acknowledged
-					return;
+			db.countSql("ask", query2, function(results) {
 				
+				if (results == 0) {
+					console.log("No transaction is matched");
+					callback(true);
+					return;
+				}
+				
+				// step 3: identify the current/highest bid in unfulfilledBids of the same stock
+				module.getHighestBid(newBid.getStock(), function(highestBid) {
+				
+					// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
+					module.getLowestAsk(newBid.getStock(), function(lowestAsk) {
+						
+						console.log("----------------------------------------->" + (parseInt(highestBid.getPrice()) >= parseInt(lowestAsk.getPrice())));
+						// step 5: check if there is a match.
+						// A match happens if the highest bid is bigger or equal to the lowest ask
+						if (highestBid.getPrice() >= lowestAsk.getPrice()) {
+							// a match is found
+							query3 = { $and: [ 
+								{ stockName: highestBid.getStock() }, 
+								{ price: highestBid.getPrice() }, 
+								{ userID: highestBid.getUserId() }, 
+								{ bidDate: convertToTimeStamp(highestBid.getDate()) } 
+							] };
+							
+							db.removeOneQuerySql("bid", query3, function(value) {
+							
+								query4 = { $and: [ 
+									{ stockName: lowestAsk.getStock() }, 
+									{ price: lowestAsk.getPrice() }, 
+									{ userID: lowestAsk.getUserId() }, 
+									{ askDate: convertToTimeStamp(lowestAsk.getDate()) } 
+								] };
+								
+								db.removeOneQuerySql("ask", query4, function(value) {
+									
+									// this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
+									var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
+									
+									query5 = {
+										bidPrice : highestBid.getPrice(),
+										bidUserID : highestBid.getUserId(),
+										bidDate : convertToTimeStamp(highestBid.getDate()),
+										askPrice : lowestAsk.getPrice(),
+										askUserID : lowestAsk.getUserId(),
+										askDate : convertToTimeStamp(lowestAsk.getDate()),
+										matchDate : convertToTimeStamp(match.getDate()), 
+										price : match.getPrice(), 
+										stockName : match.getStock()
+									};
+									db.insertSql("matchedtransactiondb", query5, function(value) {
+									
+										// to be included here: inform Back Office Server of match
+										// to be done in v1.0
+										module.updateLatestPrice(match);
+										module.logMatchedTransactions(match);
+									});
+								});
+							});
+						}
+						
+						console.log("Transaction is matched");
+						callback(true); // this bid is acknowledged
+						return;
+					
+					});
 				});
 			});
 		});
@@ -380,75 +384,79 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk, callback) {
 		askDate : convertToTimeStamp(newAsk.getDate())
 	};
 	
-	db.insertSql("ask", query1);
+	db.insertSql("ask", query1, function(value) {
 	
-	// step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
-    // count keeps track of the number of unfulfilled bids for this stock
-	query2 = {};
-	query2.stockName = newAsk.getStock()
-	
-	db.countSql("bid", query2, function(results) {
+		// step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
+		// count keeps track of the number of unfulfilled bids for this stock
+		query2 = {};
+		query2.stockName = newAsk.getStock()
 		
-		if (results == 0) {
-			console.log("No transaction is matched");
-			callback(true);
-			return;
-		}
-		
-		 // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-		 module.getHighestBid(newAsk.getStock(), function(highestBid) { 
-		 
-			// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-			module.getLowestAsk(newAsk.getStock(), function(lowestAsk) {
-			 
-				 // step 5: check if there is a match.
-				// A match happens if the lowest ask is <= highest bid
-				if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-					// a match is found	
-					query3 = { $and: [ 
-						{ stockName: highestBid.getStock() }, 
-						{ price: highestBid.getPrice() }, 
-						{ userID: highestBid.getUserId() }, 
-						{ bidDate: convertToTimeStamp(highestBid.getDate()) } 
-					] };
-					
-					db.removeOneQuerySql("bid", query3, callback);
-					
-					query4 = { $and: [ 
-						{ stockName: lowestAsk.getStock() }, 
-						{ price: lowestAsk.getPrice() }, 
-						{ userID: lowestAsk.getUserId() }, 
-						{ askDate: convertToTimeStamp(lowestAsk.getDate()) } 
-					] };
-					
-					db.removeOneQuerySql("ask", query4, callback);
-					
-					// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-					var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-					
-					query5 = {
-						bidPrice : highestBid.getPrice(),
-						bidUserID : highestBid.getUserId(),
-						bidDate : convertToTimeStamp(highestBid.getDate()),
-						askPrice : lowestAsk.getPrice(),
-						askUserID : lowestAsk.getUserId(),
-						askDate : convertToTimeStamp(lowestAsk.getDate()),
-						matchDate : convertToTimeStamp(match.getDate()), 
-						price : match.getPrice(), 
-						stockName : match.getStock()
-					};
-					db.insertSql("matchedtransactiondb", query5);
+		db.countSql("bid", query2, function(results) {
 			
-					// to be included here: inform Back Office Server of match
-					// to be done in v1.0
-					module.updateLatestPrice(match);
-					module.logMatchedTransactions(match);
-				}
-			});
-			//callback(true);
-			console.log("Transaction is matched");
-			return;
+			if (results == 0) {
+				console.log("No transaction is matched");
+				return;
+			}
+			
+			 // step 3: identify the current/highest bid in unfulfilledBids of the same stock
+			 module.getHighestBid(newAsk.getStock(), function(highestBid) { 
+			 
+				// step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
+				module.getLowestAsk(newAsk.getStock(), function(lowestAsk) {
+				 
+					 // step 5: check if there is a match.
+					// A match happens if the lowest ask is <= highest bid
+					if (lowestAsk.getPrice() <= highestBid.getPrice()) {
+						// a match is found	
+						query3 = { $and: [ 
+							{ stockName: highestBid.getStock() }, 
+							{ price: highestBid.getPrice() }, 
+							{ userID: highestBid.getUserId() }, 
+							{ bidDate: convertToTimeStamp(highestBid.getDate()) } 
+						] };
+						
+						db.removeOneQuerySql("bid", query3, function(value) {
+						
+							query4 = { $and: [ 
+								{ stockName: lowestAsk.getStock() }, 
+								{ price: lowestAsk.getPrice() }, 
+								{ userID: lowestAsk.getUserId() }, 
+								{ askDate: convertToTimeStamp(lowestAsk.getDate()) } 
+							] };
+							
+							db.removeOneQuerySql("ask", query4, function(value) {
+							
+								// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
+								var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
+								
+								query5 = {
+									bidPrice : highestBid.getPrice(),
+									bidUserID : highestBid.getUserId(),
+									bidDate : convertToTimeStamp(highestBid.getDate()),
+									askPrice : lowestAsk.getPrice(),
+									askUserID : lowestAsk.getUserId(),
+									askDate : convertToTimeStamp(lowestAsk.getDate()),
+									matchDate : convertToTimeStamp(match.getDate()), 
+									price : match.getPrice(), 
+									stockName : match.getStock()
+								};
+								db.insertSql("matchedtransactiondb", query5, function(value) {
+						
+									// to be included here: inform Back Office Server of match
+									// to be done in v1.0
+									module.updateLatestPrice(match);
+									module.logMatchedTransactions(match);
+								});
+							});
+						});
+					}
+				});
+				//callback(true);
+				console.log("Transaction is matched");
+				return;
+			})
 		});
+		
 	});
 }
 

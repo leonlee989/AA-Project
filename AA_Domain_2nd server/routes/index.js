@@ -79,7 +79,7 @@ exports.processBuy = function(req, res) {
 	var stock = req.session.stock = req.param('stock');
 	var tempBidPrice = req.session.tempBidPrice = req.param('bidprice');
 	
-	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
+	var newBid = new bidModule.Bid(stock, parseInt(tempBidPrice), userId, new Date());
 	exchangeBean.placeNewBidAndAttemptMatch(newBid, function(bidIsAccepted) {
 		if (bidIsAccepted) {
 			res.redirect("/buySuccess");
@@ -118,7 +118,7 @@ exports.processSell = function(req, res) {
 	var stock = req.session.stock = req.param('stock');
 	var tempAskPrice = req.session.tempAskPrice = req.param('askprice');
 	
-	var newAsk = new askModule.Ask(stock, tempAskPrice, userId);
+	var newAsk = new askModule.Ask(stock, parseInt(tempAskPrice), userId, new Date());
 	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
 	res.redirect("/sellSuccess");
@@ -176,8 +176,8 @@ exports.viewOrders = function(req, res) {
 				exchangeBean.getUnfulfilledBidsForDisplay("ntu", function(ntubids) {
 					
 					exchangeBean.getUnfulfilledAsks("smu", function(smuask) {
-						exchangeBean.getUnfulfilledAsks("smu", function(nusask) {
-							exchangeBean.getUnfulfilledAsks("smu", function(ntuask) {
+						exchangeBean.getUnfulfilledAsks("nus", function(nusask) {
+							exchangeBean.getUnfulfilledAsks("ntu", function(ntuask) {
 				
 								res.render('viewOrders.ejs', { 
 
