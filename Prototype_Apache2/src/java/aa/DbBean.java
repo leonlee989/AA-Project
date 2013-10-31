@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
+import javax.sql.DataSource;
 
 /**
  *
@@ -24,26 +25,24 @@ public class DbBean {
 
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";
-    private static Connection dbConnection;
+    private static DataSource datasource;
     static String dbURL = "jdbc:mysql://localhost:3306/exchange";
     static String dbUser = "root";
     static String dbPassword = "root";
     //Read JDBC parameters from web.xml
     
     public static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
-
-        if (dbConnection == null || dbConnection.isClosed()) {
-            
+        if (datasource == null) {
             // connects to the database using root. change your database id/password here if necessary    
-            Context env = (Context) new InitialContext().lookup("java:comp/env");
+            InitialContext cxt = new InitialContext();
+            Context env = (Context) cxt.lookup("java:comp/env");
+            datasource = (DataSource) env.lookup("jdbc/ExchangeDB");
             dbURL = (String) env.lookup("dbURL");
             dbUser = (String) env.lookup("dbUser");
             dbPassword = (String) env.lookup("dbPassword");
 
         
             Class.forName(dbDriver);
-            // login credentials to your MySQL server
-            dbConnection = DriverManager.getConnection(dbURL, dbUser, dbPassword);
             return true;
         } else {
             return true;
@@ -59,15 +58,23 @@ public class DbBean {
         if (!connect()) {
             return null;
         }
-
+        Connection connection = datasource.getConnection();
         //execute sql.
-        Statement dbStatement = dbConnection.createStatement();
-        return dbStatement.executeQuery(sql);
+        Statement dbStatement = connection.createStatement();
+        ResultSet rs = dbStatement.executeQuery(sql);
+        
+        if (dbStatement != null) try { dbStatement.close(); } catch (SQLException ignore) {}
+        if (connection != null) try { connection.close(); } catch (SQLException ignore) {}
+        
+        return rs;
     }
     
     public static ResultSet executeSql(PreparedStatement stmt){
         try {
-            return stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
+            if (stmt != null) try { stmt.close(); } catch (SQLException ignore) {}
+            
+            return rs;
         } catch (SQLException ex) {
             Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -84,20 +91,17 @@ public class DbBean {
         }
 
         //execute the update.
+        Connection dbConnection = datasource.getConnection();
         Statement dbStatement = dbConnection.createStatement();
         return dbStatement.executeUpdate(sql);
     }
-    /*
-     * Close the connection.
-     */
-
-    public static void close() throws SQLException {
-        if (dbConnection != null && !dbConnection.isClosed()) {
-            dbConnection.close();
-        }
-    }
     
     public static Connection getDbConnection(){
-        return dbConnection;
+        try {
+            return datasource.getConnection();
+        } catch (SQLException ex) {
+            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 }

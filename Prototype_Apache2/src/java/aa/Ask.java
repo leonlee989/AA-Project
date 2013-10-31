@@ -49,6 +49,10 @@ public class Ask {
   public Date getDate() {
     return date;
   }
+  
+  public int getID(){
+      return askID;
+  }
 
   // toString
   public String toString() {

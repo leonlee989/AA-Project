@@ -2,12 +2,10 @@ package context;
 
 
 import aa.DbBean;
-import aa.StoredProcedure;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.naming.NamingException;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 

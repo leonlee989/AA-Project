@@ -60,7 +60,6 @@ public class ExchangeBean {
     // dump all unfulfilled buy and sell orders from their respective tables
     clearTable("ask");
     clearTable("bid");
-    // Reset the credit in database #SD#.
     clearTable("credit");
   }
   
@@ -69,10 +68,13 @@ public class ExchangeBean {
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
       String returnString = ""; 
+      Connection cn = null;
+      CallableStatement cs = null;
+      ResultSet rs = null;
       try {
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_BIDS(?)}");
+          cs = cn.prepareCall("{call GET_FILTERED_BIDS(?)}");
           cs.setString(1,stock);
-          ResultSet rs = cs.executeQuery();
+          rs = cs.executeQuery();
             
           while (rs.next()){
               int id = rs.getInt("id");
@@ -85,6 +87,21 @@ public class ExchangeBean {
           }
       } catch (SQLException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } finally {
+          if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
       return returnString;
   }
@@ -107,18 +124,67 @@ public class ExchangeBean {
       return false;
   }
   
-  private boolean checkIfAskExists(String stockName)throws SQLException{
-      CallableStatement cs = StoredProcedure.connection.prepareCall("{call CHECK_IF_ASK_EXISTS(?)}");
-      cs.setString(1, stockName);
-      ResultSet rs = cs.executeQuery();
-      return rs.next();
+  private boolean checkIfAskExists(String stockName){
+      CallableStatement cs = null;
+      Connection cn = null;
+      ResultSet rs = null;
+      try{
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call CHECK_IF_ASK_EXISTS(?)}");
+            cs.setString(1, stockName);
+            rs = cs.executeQuery();
+            boolean existence = rs.next();
+            return existence;
+      }catch(SQLException e){
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+      }finally{
+          if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
+      }
+      return false;
   }
   
-  private boolean checkIfBidExists(String stockName)throws SQLException{
-      CallableStatement cs = StoredProcedure.connection.prepareCall("{call CHECK_IF_BID_EXISTS(?)}");
-      cs.setString(1, stockName);
-      ResultSet rs = cs.executeQuery();
-      return rs.next();
+  private boolean checkIfBidExists(String stockName){
+      CallableStatement cs = null;
+      Connection cn = null;
+      ResultSet rs = null;
+      try{
+            cs = cn.prepareCall("{call CHECK_IF_BID_EXISTS(?)}");
+            cs.setString(1, stockName);
+            rs = cs.executeQuery();
+            boolean exists = rs.next();
+            return exists;
+      }catch(SQLException e){
+           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);     
+      }finally{
+          if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
+      } 
+      return false;
   }
     
   private void insertBid(Bid bid){
@@ -132,31 +198,61 @@ public class ExchangeBean {
   }
   
   private void insertRejectedLog(String logStatement){
+      Connection cn = null;
+      CallableStatement cs = null;
       try{
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_REJECTED_LOG(?)}");
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call INSERT_REJECTED_LOG(?)}");
           cs.setString(1, logStatement);
           cs.executeQuery();
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+      }finally{
+          if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
   }
   
   private void insertMatchedLog(String logStatement){
+      Connection cn = null;
+      CallableStatement cs = null;
       try{
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_MATCHED_LOG(?)}");
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call INSERT_MATCHED_LOG(?)}");
           cs.setString(1, logStatement);
           cs.executeQuery();
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+      }finally{
+          if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
   }
     
   public String getUnfulfilledAsks(String stock) {
-    String returnString = ""; 
-      try {
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_FILTERED_ASKS(?)}");
+        String returnString = ""; 
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call GET_FILTERED_ASKS(?)}");
           cs.setString(1,stock);
-          ResultSet rs = cs.executeQuery();
+          rs = cs.executeQuery();
             
           while (rs.next()){
               int id = rs.getInt("id");
@@ -169,6 +265,21 @@ public class ExchangeBean {
           }
       } catch (SQLException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } finally {
+            if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
       return returnString;
   }
@@ -224,27 +335,40 @@ public class ExchangeBean {
   }
 
   // get credit remaining for a particular buyer
-  private int getCreditRemaining(String buyerUserId) throws ClassNotFoundException, SQLException, NamingException{
-//    if (!(creditRemaining.containsKey(buyerUserId))){
-//      // this buyer is not in the hash table yet. hence create a new entry for him
-//      creditRemaining.put(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
-//    }
-//    return creditRemaining.get(buyerUserId);
-    
-   //read the credit limit from database #SD#
-   CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_USER_CREDIT_LIMIT(?)}");
-   cs.setString(1, buyerUserId);
-   ResultSet rs = cs.executeQuery();
-    if (rs.next())
-    {
-        return rs.getInt("credit_limit");        
-    }    
-    else
-    {
-        InsertUserCredit iuct = new InsertUserCredit(buyerUserId,DAILY_CREDIT_LIMIT_FOR_BUYERS);
-        return DAILY_CREDIT_LIMIT_FOR_BUYERS;
-    }
-    
+  private int getCreditRemaining(String buyerUserId){
+      Connection cn = null;
+      CallableStatement cs = null;
+      ResultSet rs = null;
+      try{
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_USER_CREDIT_LIMIT(?)}");
+            cs.setString(1, buyerUserId);
+            rs = cs.executeQuery();
+            if (rs.next()){
+                 return rs.getInt("credit_limit");        
+            }else{
+                 InsertUserCredit iuct = new InsertUserCredit(buyerUserId,DAILY_CREDIT_LIMIT_FOR_BUYERS);
+                 return DAILY_CREDIT_LIMIT_FOR_BUYERS;
+            }
+      }catch(SQLException e){
+           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);         
+      }finally{
+          if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
+      }
+      return 0;//will never be called unless error occurs
   }
 
   // check if a buyer is eligible to place an order based on his credit limit
@@ -294,22 +418,15 @@ public class ExchangeBean {
   // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
   // this method is used by viewOrders.jsp for debugging purposes
   public String getAllCreditRemainingForDisplay() throws Exception{
-    String returnString = "";
-
-//    Enumeration items = creditRemaining.keys();
-//
-//    while (items.hasMoreElements()){
-//      String key = (String)items.nextElement();
-//      int value = creditRemaining.get(key);
-//      returnString += "<tr><td>" + key + "</td><td>" + value + "</td></tr>";
-//    }
-    
+    String returnString = ""; 
     //get the credit limit for all users from database. #SD#
     ResultSet rs = DbBean.executeSql("select * from credit");
     while(rs.next())
     {
         returnString += "<tr><td>" + rs.getString("userid") + "</td><td>" + rs.getInt("credit_limit") + "</td></tr>";        
     }
+    if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
+        
     return returnString;
   }
 
@@ -424,9 +541,10 @@ public class ExchangeBean {
   }
   
   public ArrayList<MatchedTransaction> getAllMatchedTransactions () {
+      ResultSet rs = null;
       try {
           ArrayList<MatchedTransaction> transactions = new ArrayList<MatchedTransaction>();
-          ResultSet rs = DbBean.executeSql("select * from matchedTransactionDB");
+          rs = DbBean.executeSql("select * from matchedTransactionDB");
           while (rs.next()){
               int bidPrice = rs.getInt("bidPrice");
               String bidUserId = rs.getString("bidUserID");
@@ -448,20 +566,34 @@ public class ExchangeBean {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (NamingException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      }finally{
+          if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
       }
       return null;
   }
   
   private void updateLatestPrice(String stock,int price){
       CallableStatement cs = null;
+      Connection cn = null;
       try {
-          cs = StoredProcedure.connection.prepareCall("{call UPDATE_STOCK_PRICE(?,?)}");
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call UPDATE_STOCK_PRICE(?,?)}");
           cs.setInt(1, price);
           cs.setString(2, stock);
           cs.executeQuery();
       } catch (SQLException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
           executeInsertPrice(stock,price);//if stock is not found, insert new value for the stock
+      } finally {
+          if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
   }
   
@@ -476,8 +608,9 @@ public class ExchangeBean {
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   public int getLatestPrice(String stock) {
+      ResultSet rs = null;
       try {
-          ResultSet rs = DbBean.executeSql(String.format("select * from stock WHERE stockName = '%s'",stock));
+          rs = DbBean.executeSql(String.format("select * from stock WHERE stockName = '%s'",stock));
           if (rs == null){
             executeInsertPrice(stock,-1);
           }
@@ -490,6 +623,11 @@ public class ExchangeBean {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
       } catch (NamingException ex) {
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      } finally {
+          if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
       }
     return -1;//no such stock
   }
@@ -529,8 +667,11 @@ public class ExchangeBean {
   }
 
     private void executeInsertPrice(String stock, int price) {
-      try{
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_PRICE(?,?)}");
+        Connection cn = null;
+        CallableStatement cs = null;
+        try{
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call INSERT_PRICE(?,?)}");
           cs.setInt(1, price);
           cs.setString(2, stock);
       }catch(SQLException ex){

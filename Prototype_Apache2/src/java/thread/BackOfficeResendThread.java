@@ -4,8 +4,9 @@
  */
 package thread;
 
-import aa.StoredProcedure;
+import aa.DbBean;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
@@ -47,12 +48,25 @@ public class BackOfficeResendThread implements Callable<Boolean>{
     }
     
     private void removeFromBackOfficeLog(String logMessage){
+        Connection cn = null;
+        CallableStatement cs = null;
         try {
-            CallableStatement cs = StoredProcedure.connection.prepareCall("{call DELETE_BACKOFFICELOG(?)}");
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call DELETE_BACKOFFICELOG(?)}");
             cs.setString(1,logMessage);
             cs.executeQuery();
         } catch (SQLException ex) {
             Logger.getLogger(BackOfficeThread.class.getName()).log(Level.SEVERE, null, ex);
+        }finally{
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
         }
     }
 }

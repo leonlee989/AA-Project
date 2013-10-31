@@ -49,6 +49,10 @@ public class Bid {
   public Date getDate() {
     return date;
   }
+  
+  public int getID(){
+      return bidID;
+  }
 
   // toString
   public String toString() {

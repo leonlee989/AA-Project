@@ -51,6 +51,6 @@ public class MatchedTransaction {
   
   // toString
   public String toString() {
-    return "stock: " + stock + ", amt: " + price + ", bidder userId: " + bid.getUserId() + ", seller userId: " + ask.getUserId() + ", date: " + date;
+    return "stock: " + stock + ", amt: " + price + ", bidID: " + bid.getID() + ", bidder userId: " + bid.getUserId() + ", askID: " + ask.getID() + ", seller userId: " + ask.getUserId() + ", date: " + date;
   }
 }

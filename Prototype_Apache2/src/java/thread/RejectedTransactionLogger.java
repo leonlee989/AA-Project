@@ -5,8 +5,8 @@
 package thread;
 
 import aa.Bid;
+import aa.DbBean;
 import aa.ExchangeBean;
-import aa.StoredProcedure;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -74,12 +75,25 @@ public class RejectedTransactionLogger implements Runnable {
     }
     
     private void insertRejectedLog(String logStatement){
-      try{
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_REJECTED_LOG(?)}");
-          cs.setString(1, logStatement);
-          cs.executeQuery();
-      }catch(SQLException e){
-          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
-      }
+        CallableStatement cs = null;
+        Connection cn = null;
+        try{
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_REJECTED_LOG(?)}");
+            cs.setString(1, logStatement);
+            cs.executeQuery();
+        }catch(SQLException e){
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        }finally{
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
+        }
   }
 }

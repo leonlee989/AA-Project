@@ -4,8 +4,9 @@
  */
 package thread;
 
-import aa.StoredProcedure;
+import aa.DbBean;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,13 +25,26 @@ public class InsertUserCredit implements Runnable {
     }
     
     public void run() {
+        CallableStatement cs = null;
+        Connection cn = null;
         try {
-            CallableStatement cs2 = StoredProcedure.connection.prepareCall("{call INSERT_USER_CREDIT(?,?)}");
-            cs2.setString(1, userID);
-            cs2.setInt(2, creditLimit);
-            cs2.executeQuery();
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_USER_CREDIT(?,?)}");
+            cs.setString(1, userID);
+            cs.setInt(2, creditLimit);
+            cs.executeQuery();
         } catch (SQLException ex) {
             Logger.getLogger(InsertUserCredit.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
         }
     }
     

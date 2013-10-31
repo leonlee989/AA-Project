@@ -5,9 +5,10 @@
 package thread;
 
 import aa.Ask;
+import aa.DbBean;
 import aa.ExchangeBean;
-import aa.StoredProcedure;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
@@ -27,10 +28,14 @@ public class LowestAskThread implements Callable<Ask> {
     }
     
     public Ask call() throws Exception{
+        CallableStatement cs = null;
+        Connection cn = null;
+        ResultSet rs = null;
         try {
-            CallableStatement cs = StoredProcedure.connection.prepareCall("{call GET_LOWEST_ASK(?)}");
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_LOWEST_ASK(?)}");
             cs.setString(1, stockName);
-            ResultSet rs = cs.executeQuery();
+            rs = cs.executeQuery();
             if (rs == null){
               return null;
             }
@@ -43,6 +48,21 @@ public class LowestAskThread implements Callable<Ask> {
             }
         }catch(SQLException ex){
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }finally{
+            if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
         }
       return null;
     }

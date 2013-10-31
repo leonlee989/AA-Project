@@ -4,9 +4,9 @@
  */
 package thread;
 
+import aa.DbBean;
 import aa.ExchangeBean;
 import aa.MatchedTransaction;
-import aa.StoredProcedure;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -62,12 +63,25 @@ public class MatchedTransactionLogger implements Runnable{
   }
     
    private void insertMatchedLog(String logStatement){
-      try{
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_MATCHED_LOG(?)}");
+      CallableStatement cs = null;
+      Connection cn = null;       
+       try{
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call INSERT_MATCHED_LOG(?)}");
           cs.setString(1, logStatement);
           cs.executeQuery();
       }catch(SQLException e){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+      }finally{
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
   }
    

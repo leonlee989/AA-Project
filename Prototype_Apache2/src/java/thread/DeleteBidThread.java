@@ -5,9 +5,10 @@
 package thread;
 
 import aa.Bid;
+import aa.DbBean;
 import aa.ExchangeBean;
-import aa.StoredProcedure;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.logging.Level;
@@ -25,8 +26,11 @@ public class DeleteBidThread implements Runnable{
     }
 
     public void run() {
+        CallableStatement cs = null;
+        Connection cn = null;
         try {
-          CallableStatement cs = StoredProcedure.connection.prepareCall("{call DELETE_BID(?,?,?,?)}");
+          cn = DbBean.getDbConnection();
+          cs = cn.prepareCall("{call DELETE_BID(?,?,?,?)}");
           cs.setString(1, bid.getStock());
           cs.setInt(2, bid.getPrice());
           cs.setString(3, bid.getUserId());
@@ -34,6 +38,16 @@ public class DeleteBidThread implements Runnable{
           cs.executeQuery();
       }catch(SQLException ex){
           Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      }finally{
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
       }
     }
 }

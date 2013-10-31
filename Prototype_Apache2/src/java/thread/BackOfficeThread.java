@@ -4,8 +4,9 @@
  */
 package thread;
 
-import aa.StoredProcedure;
+import aa.DbBean;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -59,38 +60,89 @@ public class BackOfficeThread implements Callable<Boolean>{
     }
     
     private void logRejectedBackOfficeTransactions(String txnDescription){
+        CallableStatement cs = null;
+        Connection cn = null;
         try {
-            CallableStatement cs = StoredProcedure.connection.prepareCall("{call INSERT_BACKOFFICE_LOG(?)}");
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_BACKOFFICE_LOG(?)}");
             cs.setString(1,txnDescription);
             cs.executeQuery();
         } catch (SQLException ex) {
             Logger.getLogger(BackOfficeThread.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
         }
     }
     
     private boolean checkBackOfficeLogs(){
+        CallableStatement cs = null;
+        Connection cn = null;
+        ResultSet rs = null;
         try {
-            CallableStatement cs = StoredProcedure.connection.prepareCall("{call CHECK_IF_BACKOFFICEMESSAGE_EXISTS}");
-            ResultSet rs = cs.executeQuery();
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call CHECK_IF_BACKOFFICEMESSAGE_EXISTS}");
+            rs = cs.executeQuery();
             if (rs!=null){
                 return true;
             }
         } catch (SQLException ex) {
             Logger.getLogger(BackOfficeThread.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
+            
+            if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
         }
         return false;
     }
     
     private ArrayList<String> downloadBackOfficeLogs(){
         ArrayList<String> logs = new ArrayList<String>();
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
         try {
-            CallableStatement cs = StoredProcedure.connection.prepareCall("{call DUMP_FROM_BACKOFFICE}");
-            ResultSet rs = cs.executeQuery();
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call DUMP_FROM_BACKOFFICE}");
+            rs = cs.executeQuery();
             while(rs.next()){
                 logs.add(rs.getString("logStatement"));
             }
         } catch (SQLException ex) {
             Logger.getLogger(BackOfficeThread.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
+            if (cs!=null){
+                try { cs.close(); } catch (SQLException e) { ; }
+                cs = null;
+            }
+            
+            if (cn!=null){
+                try { cn.close(); } catch (SQLException e) { ; }
+                cn = null;
+            }
         }
         return logs;
     }
