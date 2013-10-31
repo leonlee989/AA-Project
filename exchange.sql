@@ -20,6 +20,7 @@ CREATE TABLE stock (
 
 DROP TABLE IF EXISTS ask;
 CREATE TABLE ask (
+	id bigint not null auto_increment,
 	stockName varchar(10) not null,
 	price int not null,
 	userID varchar(50) not null,
@@ -30,6 +31,7 @@ CREATE TABLE ask (
 
 DROP TABLE IF EXISTS bid;
 CREATE TABLE bid (
+	id bigint not null auto_increment,
 	stockName varchar(10) not null,
 	price int not null,
 	userID varchar(50) not null,
@@ -107,7 +109,7 @@ DROP PROCEDURE IF EXISTS INSERT_BACKOFFICE_LOG;
 DROP PROCEDURE IF EXISTS CHECK_IF_BACKOFFICEMESSAGE_EXISTS;
 DROP PROCEDURE IF EXISTS DUMP_FROM_BACKOFFICE;
 DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
-DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
+DROP PROCEDURE IF EXISTS DELETE_BACKOFFICELOG;
 
 
 DELIMITER $$
@@ -180,13 +182,13 @@ DELIMITER $$
 			CREATE PROCEDURE INSERT_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
 				BEGIN
 					START TRANSACTION;
-					insert into bid (bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (stockName, price, userID, bidDate);
+					insert into bid (bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (0,stockName, price, userID, bidDate);
 					Commit;
 				END $$
 			
 			CREATE PROCEDURE INSERT_ASK(IN stockName varchar(10), IN price int, IN userID varchar(50), IN askDate TimeStamp)
 				BEGIN
-					insert into ask (ask.stockName, ask.price, ask.userID, ask.askDate) VALUES (stockName, price, userID, askDate);
+					insert into ask (ask.stockName, ask.price, ask.userID, ask.askDate) VALUES (0,stockName, price, userID, askDate);
 				END $$
 			
 			CREATE PROCEDURE INSERT_BACKOFFICE_LOG(IN logStatement varchar(500))

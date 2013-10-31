@@ -4,7 +4,7 @@
         <title>index</title>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     </head>
-    <body style="background-color:pink;">
+    <body style="background-color:thistle;">
         <h1>Exchange Prototype</h1><hr/>
 
         HTML:

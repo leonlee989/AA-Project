@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://tempuri.org/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" targetNamespace="http://tempuri.org/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://tempuri.org/">
+      <s:element name="ProcessTransaction">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="teamId" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="teamPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionDescription" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ProcessTransactionResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ProcessTransactionResult" type="s:boolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Clear">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="teamId" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="teamPassword" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ClearResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ClearResult" type="s:boolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="boolean" type="s:boolean" />
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="ProcessTransactionSoapIn">
+    <wsdl:part name="parameters" element="tns:ProcessTransaction" />
+  </wsdl:message>
+  <wsdl:message name="ProcessTransactionSoapOut">
+    <wsdl:part name="parameters" element="tns:ProcessTransactionResponse" />
+  </wsdl:message>
+  <wsdl:message name="ClearSoapIn">
+    <wsdl:part name="parameters" element="tns:Clear" />
+  </wsdl:message>
+  <wsdl:message name="ClearSoapOut">
+    <wsdl:part name="parameters" element="tns:ClearResponse" />
+  </wsdl:message>
+  <wsdl:message name="ProcessTransactionHttpGetIn">
+    <wsdl:part name="teamId" type="s:string" />
+    <wsdl:part name="teamPassword" type="s:string" />
+    <wsdl:part name="transactionDescription" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ProcessTransactionHttpGetOut">
+    <wsdl:part name="Body" element="tns:boolean" />
+  </wsdl:message>
+  <wsdl:message name="ClearHttpGetIn">
+    <wsdl:part name="teamId" type="s:string" />
+    <wsdl:part name="teamPassword" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ClearHttpGetOut">
+    <wsdl:part name="Body" element="tns:boolean" />
+  </wsdl:message>
+  <wsdl:message name="ProcessTransactionHttpPostIn">
+    <wsdl:part name="teamId" type="s:string" />
+    <wsdl:part name="teamPassword" type="s:string" />
+    <wsdl:part name="transactionDescription" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ProcessTransactionHttpPostOut">
+    <wsdl:part name="Body" element="tns:boolean" />
+  </wsdl:message>
+  <wsdl:message name="ClearHttpPostIn">
+    <wsdl:part name="teamId" type="s:string" />
+    <wsdl:part name="teamPassword" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ClearHttpPostOut">
+    <wsdl:part name="Body" element="tns:boolean" />
+  </wsdl:message>
+  <wsdl:portType name="ServiceSoap">
+    <wsdl:operation name="ProcessTransaction">
+      <wsdl:input message="tns:ProcessTransactionSoapIn" />
+      <wsdl:output message="tns:ProcessTransactionSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <wsdl:input message="tns:ClearSoapIn" />
+      <wsdl:output message="tns:ClearSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="ServiceHttpGet">
+    <wsdl:operation name="ProcessTransaction">
+      <wsdl:input message="tns:ProcessTransactionHttpGetIn" />
+      <wsdl:output message="tns:ProcessTransactionHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <wsdl:input message="tns:ClearHttpGetIn" />
+      <wsdl:output message="tns:ClearHttpGetOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="ServiceHttpPost">
+    <wsdl:operation name="ProcessTransaction">
+      <wsdl:input message="tns:ProcessTransactionHttpPostIn" />
+      <wsdl:output message="tns:ProcessTransactionHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <wsdl:input message="tns:ClearHttpPostIn" />
+      <wsdl:output message="tns:ClearHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="ServiceSoap" type="tns:ServiceSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="ProcessTransaction">
+      <soap:operation soapAction="http://tempuri.org/ProcessTransaction" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <soap:operation soapAction="http://tempuri.org/Clear" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="ServiceSoap12" type="tns:ServiceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="ProcessTransaction">
+      <soap12:operation soapAction="http://tempuri.org/ProcessTransaction" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <soap12:operation soapAction="http://tempuri.org/Clear" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="ServiceHttpGet" type="tns:ServiceHttpGet">
+    <http:binding verb="GET" />
+    <wsdl:operation name="ProcessTransaction">
+      <http:operation location="/ProcessTransaction" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <http:operation location="/Clear" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="ServiceHttpPost" type="tns:ServiceHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="ProcessTransaction">
+      <http:operation location="/ProcessTransaction" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Clear">
+      <http:operation location="/Clear" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="Service">
+    <wsdl:port name="ServiceSoap" binding="tns:ServiceSoap">
+      <soap:address location="http://10.0.106.239:81/aabo/Service.asmx" />
+    </wsdl:port>
+    <wsdl:port name="ServiceSoap12" binding="tns:ServiceSoap12">
+      <soap12:address location="http://10.0.106.239:81/aabo/Service.asmx" />
+    </wsdl:port>
+    <wsdl:port name="ServiceHttpGet" binding="tns:ServiceHttpGet">
+      <http:address location="http://10.0.106.239:81/aabo/Service.asmx" />
+    </wsdl:port>
+    <wsdl:port name="ServiceHttpPost" binding="tns:ServiceHttpPost">
+      <http:address location="http://10.0.106.239:81/aabo/Service.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
