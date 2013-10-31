@@ -1,8 +1,8 @@
-function Bid (stock, price, userId) {
+function Bid (stock, price, userId, date) {
 	this.stock = stock;
 	this.price = price;	
 	this.userId = userId;
-	this.date = new Date();
+	this.date = date;
 }
 
 Bid.prototype.getStock = function() {

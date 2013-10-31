@@ -94,4 +94,36 @@ DBBean.prototype.removeOneSql = function(tableName, remove_key, remove_value, ca
 	});
 }
 
+DBBean.prototype.removeOneQuerySql = function(tableName, query, callback) {
+	var collection = this.database.collection(tableName);
+	
+	console.log("Remove " + query + " from " + tableName);
+	collection.remove(query, {w:1}, function(err, results) {
+		if (!err) {
+			console.log("Remove Success...");
+			callback(results);
+		} else {
+			console.log("Remove Failed...");
+		}
+	});
+}
+
+DBBean.prototype.countSql = function(tableName, query, callback) {
+	var collection = this.database.collection(tableName);
+	console.log("Count with " + JSON.stringify(query) + " from " + tableName);
+	
+	collection.count(query, {w:1}, function(err, countval) {
+		if (!err) {
+			console.log("Count Success...");
+			if (countval == null) {
+				callback(0);
+			} else {
+				callback(countval);
+			}
+		} else {
+			console.log("Count Failed...");
+		}
+    });
+}
+
 module.exports.DBBean = DBBean;

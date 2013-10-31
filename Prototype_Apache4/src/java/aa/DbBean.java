@@ -25,9 +25,9 @@ public class DbBean {
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";
     private static Connection dbConnection;
-    static String dbURL = null;
+    static String dbURL = "jdbc:mysql://192.168.0.20:7000/exchange";
     static String dbUser = "root";
-    static String dbPassword = "root";
+    static String dbPassword = "";
     //Read JDBC parameters from web.xml
     
     private static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
@@ -43,7 +43,7 @@ public class DbBean {
         
             Class.forName(dbDriver);
             // login credentials to your MySQL server
-            dbConnection = DriverManager.getConnection(dbURL);
+            dbConnection = DriverManager.getConnection(dbURL, dbUser, dbPassword);
             return true;
         } else {
             return true;

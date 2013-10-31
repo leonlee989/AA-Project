@@ -79,7 +79,7 @@ exports.processBuy = function(req, res) {
 	var stock = req.session.stock = req.param('stock');
 	var tempBidPrice = req.session.tempBidPrice = req.param('bidprice');
 	
-	var newBid = new bidModule.Bid(stock, tempBidPrice, userId);
+	var newBid = new bidModule.Bid(stock, tempBidPrice, userId, new Date());
 	exchangeBean.placeNewBidAndAttemptMatch(newBid, function(bidIsAccepted) {
 		if (bidIsAccepted) {
 			res.redirect("/buySuccess");
@@ -140,43 +140,70 @@ exports.logout = function(req,res) {
 };
 
 exports.current = function(req, res) {
-	res.render('current.ejs', { 
-		smuLatestPrice: exchangeBean.getLatestPrice("smu"),
-		smuHighestBidPrice: exchangeBean.getHighestBidPrice("smu"),
-		smuLowestAskPrice: exchangeBean.getLowestAskPrice("smu"),
-		
-		nusLatestPrice: exchangeBean.getLatestPrice("nus"),
-		nusHighestBidPrice: exchangeBean.getHighestBidPrice("nus"),
-		nusLowestAskPrice: exchangeBean.getLowestAskPrice("nus"),
-		
-		ntuLatestPrice: exchangeBean.getLatestPrice("ntu"),
-		ntuHighestBidPrice: exchangeBean.getHighestBidPrice("ntu"),
-		ntuLowestAskPrice: exchangeBean.getLowestAskPrice("ntu")
+	exchangeBean.getHighestBidPrice("smu", function(smuhighestprice) {
+		exchangeBean.getHighestBidPrice("nus", function(nushigestprice) {
+			exchangeBean.getHighestBidPrice("ntu", function(ntuhighestprice) {
+				
+				exchangeBean.getLowestAskPrice("smu", function(smulowestprice) {
+					exchangeBean.getLowestAskPrice("nus", function(nuslowestprice) {
+						exchangeBean.getLowestAskPrice("ntu", function(ntulowestprice) {
+						
+							res.render('current.ejs', { 
+								smuLatestPrice: exchangeBean.getLatestPrice("smu"),
+								smuHighestBidPrice: smuhighestprice,
+								smuLowestAskPrice: smulowestprice,
+								
+								nusLatestPrice: exchangeBean.getLatestPrice("nus"),
+								nusHighestBidPrice: nushigestprice,
+								nusLowestAskPrice: nuslowestprice,
+								
+								ntuLatestPrice: exchangeBean.getLatestPrice("ntu"),
+								ntuHighestBidPrice: ntuhighestprice,
+								ntuLowestAskPrice: ntulowestprice
+							});
+						});
+					});
+				});
+			});
+		});
 	});
 }
 
 exports.viewOrders = function(req, res) {
 	exchangeBean.getAllCreditRemainingForDisplay(function(value) {
-		res.render('viewOrders.ejs', { 
+		exchangeBean.getUnfulfilledBidsForDisplay("smu", function(smubids) {
+			exchangeBean.getUnfulfilledBidsForDisplay("nus", function(nusbids) {
+				exchangeBean.getUnfulfilledBidsForDisplay("ntu", function(ntubids) {
+					
+					exchangeBean.getUnfulfilledAsks("smu", function(smuask) {
+						exchangeBean.getUnfulfilledAsks("smu", function(nusask) {
+							exchangeBean.getUnfulfilledAsks("smu", function(ntuask) {
+				
+								res.render('viewOrders.ejs', { 
 
-			smuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("smu"),
-			smuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("smu"),
-			
-			nusUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("nus"),
-			nusUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("nus"),
-			
-			ntuUnfulfilledBidsForDisplay: exchangeBean.getUnfulfilledBidsForDisplay("ntu"),
-			ntuUnfulfilledAsks: exchangeBean.getUnfulfilledAsks("ntu"),
-			
-			AllCreditRemainingForDisplay: value
+									smuUnfulfilledBidsForDisplay: smubids,
+									smuUnfulfilledAsks: smuask,
+									
+									nusUnfulfilledBidsForDisplay: nusbids,
+									nusUnfulfilledAsks: nusask,
+									
+									ntuUnfulfilledBidsForDisplay: ntubids,
+									ntuUnfulfilledAsks: ntuask,
+									
+									AllCreditRemainingForDisplay: value
+								});
+							});
+						});
+					});
+				});
+			});
 		});
 	});
-	
 }
 
 exports.endTradingDay = function(req, res) {
 	exchangeBean.endTradingDay(); // clean up instance variables
-    res.clear();
+    //res.clear();
 	
 	res.render('endTradingDay.ejs');
 }

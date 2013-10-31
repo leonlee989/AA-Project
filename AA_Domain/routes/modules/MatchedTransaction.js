@@ -26,6 +26,14 @@ MatchedTransaction.prototype.getSellerId = function() {
 	return this.ask.getUserId();
 }
 
+MatchedTransaction.prototype.getBuyer = function() {
+	return this.bid;
+}
+
+MatchedTransaction.prototype.getSeller = function() {
+	return this.ask;
+}
+
 MatchedTransaction.prototype.toString = function() {
 	var dateString = [[AddZero(this.date.getDate()), AddZero(this.date.getMonth() + 1), this.date.getFullYear()].join("/"), [AddZero(this.date.getHours()), AddZero(this.date.getMinutes())].join(":"), this.date.getHours() >= 12 ? "PM" : "AM"].join(" ");
 	return "stock: " + this.stock + ", amt: " + this.price + ", bidder userId: " + this.bid.getUserId() + ", seller userId: " + this.ask.getUserId() + ", date: " + dateString;
