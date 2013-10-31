@@ -26,6 +26,7 @@ DBBean.prototype.executeSql = function(tableName, callback) {
 	collection.find().toArray(function(err, items) {
 		if (!err) {
 			console.log("Retrieval of information from " + tableName + " success...");
+			console.log("Query found as followed:" + JSON.stringify(items));
 			callback(items);
 		} else {
 			console.log("Retrieval of information from " + tableName + " failed...");
@@ -39,6 +40,7 @@ DBBean.prototype.selectOneSql = function(tableName, query, callback) {
 	collection.findOne(query, function(err, item) {
 		if (!err) {
 			console.log("Retrieval of information from " + tableName + " by " + JSON.stringify(query) + " success...");
+			console.log("Query found as followed:" + JSON.stringify(item));
 			callback(item);
 		} else {
 			console.log("Retrieval of information from " + tableName + " by " + JSON.stringify(query) + " failed...");
@@ -92,6 +94,35 @@ DBBean.prototype.removeOneSql = function(tableName, remove_key, remove_value, ca
 			console.log("Remove Failed...");
 		}
 	});
+}
+
+DBBean.prototype.removeOneQuerySql = function(tableName, query, callback) {
+	var collection = this.database.collection(tableName);
+	
+	console.log("Remove " + JSON.stringify(query) + " from " + tableName);
+	collection.remove(query, {w:1}, function(err, results) {
+		if (!err) {
+			console.log("Remove Success...");
+			callback(results);
+		} else {
+			console.log("Remove Failed...");
+		}
+	});
+}
+
+DBBean.prototype.countSql = function(tableName, query, callback) {
+	
+	var collection = this.database.collection(tableName);
+	console.log("Count with " + JSON.stringify(query) + " from " + tableName);
+	
+	collection.count(query, function(err, countval) {
+		if (!err) {
+			console.log("Count Success...");
+			callback(countval);
+		} else {
+			console.log("Count Failed...");
+		}
+    });
 }
 
 module.exports.DBBean = DBBean;
