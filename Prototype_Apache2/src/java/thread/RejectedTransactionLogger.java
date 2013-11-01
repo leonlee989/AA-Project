@@ -9,11 +9,14 @@ import aa.DbBean;
 import aa.ExchangeBean;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -43,11 +46,24 @@ public class RejectedTransactionLogger implements Runnable {
               throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
           }
           insertRejectedLog(bidMessage);
-          BufferedWriter out = new BufferedWriter(new FileWriter(rejectedLogFile,true));
-          out.write(bidMessage);
-          out.newLine();
-          out.flush();
-          out.close();
+          //IO Implementation
+          //BufferedWriter out = new BufferedWriter(new FileWriter(rejectedLogFile,true));
+          //NIO Implementation
+          FileChannel outChannel = new FileOutputStream(rejectedLogFile,true).getChannel();
+          byte[] byteArray = ("stock: smu, amt: 10, bidID: 0, bidder userId: ijiji, askID: 0, seller userId: ijiji, date: date: Tue Oct 29 03:50:49 GMT+08:00 2013" + System.getProperty("line.separator").toString()).getBytes();
+          ByteBuffer buffer = ByteBuffer.allocate(byteArray.length);
+          buffer.put(System.getProperty("line.separator").toString().getBytes());
+          buffer.put(bidMessage.getBytes());
+          buffer.flip();
+          outChannel.write(buffer);
+          buffer.clear();
+          outChannel.close();
+          //NIO Implementation End
+          //IO Implementation
+          //out.write(bidMessage);
+          //out.newLine();
+          //out.flush();
+          //out.close();
         } catch (IOException e) {
           // If Java has no admin rights n cannot write to hard-disk temp files
           logRelativeFilePath(fileName.split("\\")[fileName.length()-1],bid.toString()+"\n");

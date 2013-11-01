@@ -9,11 +9,14 @@ import aa.ExchangeBean;
 import aa.MatchedTransaction;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -44,15 +47,37 @@ public class MatchedTransactionLogger implements Runnable{
           //Take care of no path
           throw new IllegalStateException("ExchangeBean: Couldn't create directory: " + parent);
       }
-      BufferedWriter out = new BufferedWriter(new FileWriter(matchedFile,true));
+      //IO
+      //BufferedWriter out = new BufferedWriter(new FileWriter(matchedFile,true));
+      
+      //NIO
+      FileChannel outChannel = new FileOutputStream(matchedFile,true).getChannel();
+      byte[] byteArray = ("stock: smu, amt: 10, bidID: 0, bidder userId: ijiji, askID: 0, seller userId: ijiji, date: date: Tue Oct 29 03:50:49 GMT+08:00 2013" + System.getProperty("line.separator").toString()).getBytes();
+      ByteBuffer buffer = ByteBuffer.allocate(byteArray.length);
+      
+      
+      
       for (MatchedTransaction m : transactions) {
         String message = m.toString();
         insertMatchedLog(message);
-        transactionMessage += message + "\n";
+        //transactionMessage += message + "\n";
+        try{
+            buffer.put((message).getBytes());
+            buffer.put(System.getProperty("line.separator").toString().getBytes());
+            buffer.flip();
+            outChannel.write(buffer);
+            buffer.clear();
+        }catch(IOException e){
+            System.out.println("IO EXCEPTION: Cannot write to file");
+	    e.printStackTrace();
+        }
       }
-      out.write(transactionMessage);
-      out.newLine();
-      out.close();
+      //NIO Close
+      outChannel.close();
+      //IO Close
+      //out.write(transactionMessage);
+      //out.newLine();
+      //out.close();
     }catch (IOException e) {
       // Think about what should happen here...
       logRelativeFilePath(fileName.split("\\")[fileName.length()-1],transactionMessage);

@@ -72,7 +72,7 @@ public class DbBean {
                 try {
                     stmt.close();
                 } catch (SQLException e) {
-                    Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+                    Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, e);
                 }
                 stmt = null;
             }

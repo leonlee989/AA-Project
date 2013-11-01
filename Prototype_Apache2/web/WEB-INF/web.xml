@@ -4,6 +4,10 @@
         <description>ServletContextListener</description>
         <listener-class>context.Initializer</listener-class>
     </listener>
+    <listener>
+        <description>NonRegisteringDriver </description>
+        <listener-class>com.mysql.jdbc.NonRegisteringDriver</listener-class>
+    </listener>
     <session-config>
         <session-timeout>
             30

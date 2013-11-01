@@ -29,10 +29,13 @@ public class Initializer implements ServletContextListener {
             DbBean.connect();
             System.out.println("Servlet Context is initialized....");
         } catch (ClassNotFoundException ex) {
+            System.out.println("ClassNotFoundException....");
             Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (SQLException ex) {
+            System.out.println("SQLException....");
             Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (NamingException ex) {
+            System.out.println("NamingException....");
             Logger.getLogger(Initializer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -60,7 +63,7 @@ public class Initializer implements ServletContextListener {
             if (t.getName().contains("Abandoned connection cleanup thread")) {
                 synchronized (t) {
                     try {
-                        System.out.println("Shutdown thread called and executed");
+                        System.out.println(t.getName() + "   Shutdown thread called and executed");
                         AbandonedConnectionCleanupThread.shutdown();
                     } catch (InterruptedException e) {
                         Logger.getLogger(context.Initializer.class.getName()).log(Level.SEVERE, null, "SEVERE problem cleaning up: " + e.getMessage());
