@@ -5,7 +5,6 @@
 package aa;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,55 +29,24 @@ public class DbBean {
     static String dbUser = "root";
     static String dbPassword = "root";
     //Read JDBC parameters from web.xml
-    
+
     public static boolean connect() throws ClassNotFoundException, SQLException, NamingException {
         if (datasource == null) {
             // connects to the database using root. change your database id/password here if necessary    
             InitialContext cxt = new InitialContext();
             Context env = (Context) cxt.lookup("java:comp/env");
-            datasource = (DataSource) env.lookup("jdbc/ExchangeDB");
+            datasource = (DataSource) cxt.lookup("java:comp/env/jdbc/ExchangeDB");
             dbURL = (String) env.lookup("dbURL");
             dbUser = (String) env.lookup("dbUser");
             dbPassword = (String) env.lookup("dbPassword");
 
-        
+
             Class.forName(dbDriver);
             return true;
         } else {
             return true;
         }
 
-    }
-    /*
-     * Execute the given sql and returns the resultset.
-     */
-
-    public static ResultSet executeSql(String sql) throws ClassNotFoundException, SQLException, NamingException {
-        //check the connection
-        if (!connect()) {
-            return null;
-        }
-        Connection connection = datasource.getConnection();
-        //execute sql.
-        Statement dbStatement = connection.createStatement();
-        ResultSet rs = dbStatement.executeQuery(sql);
-        
-        if (dbStatement != null) try { dbStatement.close(); } catch (SQLException ignore) {}
-        if (connection != null) try { connection.close(); } catch (SQLException ignore) {}
-        
-        return rs;
-    }
-    
-    public static ResultSet executeSql(PreparedStatement stmt){
-        try {
-            ResultSet rs = stmt.executeQuery();
-            if (stmt != null) try { stmt.close(); } catch (SQLException ignore) {}
-            
-            return rs;
-        } catch (SQLException ex) {
-            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
     }
     /*
      * Execute the update statement and returns the # of affected rows.
@@ -89,14 +57,38 @@ public class DbBean {
         if (!connect()) {
             return 0;
         }
+        Connection cn = null;
+        Statement stmt = null;
+        int rs = 0;
 
-        //execute the update.
-        Connection dbConnection = datasource.getConnection();
-        Statement dbStatement = dbConnection.createStatement();
-        return dbStatement.executeUpdate(sql);
+        try {
+            cn = datasource.getConnection();
+            stmt = cn.createStatement();
+            rs = stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            if (stmt != null) {
+                try {
+                    stmt.close();
+                } catch (SQLException e) {
+                    Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+                }
+                stmt = null;
+            }
+            if (cn != null) {
+                try {
+                    cn.close();
+                } catch (SQLException e) {
+                    Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+                }
+                cn = null;
+            }
+            return rs;
+        }
     }
-    
-    public static Connection getDbConnection(){
+
+    public static Connection getDbConnection() {
         try {
             return datasource.getConnection();
         } catch (SQLException ex) {

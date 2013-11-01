@@ -112,9 +112,25 @@ DROP PROCEDURE IF EXISTS CHECK_IF_BACKOFFICEMESSAGE_EXISTS;
 DROP PROCEDURE IF EXISTS DUMP_FROM_BACKOFFICE;
 DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
 DROP PROCEDURE IF EXISTS DELETE_BACKOFFICELOG;
-
+DROP PROCEDURE IF EXISTS GET_ALL_CREDIT;
+DROP PROCEDURE IF EXISTS DUMP_FROM_TRANSACTIONDB;
 
 DELIMITER $$
+
+			CREATE PROCEDURE GET_STOCK_PRICE(IN stockName varchar(10))
+				BEGIN
+					select stock.price from stock WHERE stock.stockName = stockName;
+				END $$
+			
+			CREATE PROCEDURE DUMP_FROM_TRANSACTIONDB()
+				BEGIN
+					select * from matchedTransactionDB;
+				END $$
+			
+			CREATE PROCEDURE GET_ALL_CREDIT()
+				BEGIN
+					select * from credit;
+				END $$
 			
 			CREATE PROCEDURE GET_FILTERED_ASKS(IN stockName varchar(10))
 				BEGIN
@@ -183,9 +199,7 @@ DELIMITER $$
 			
 			CREATE PROCEDURE INSERT_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
 				BEGIN
-					START TRANSACTION;
 					insert into bid (bid.id, bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (0,stockName, price, userID, bidDate);
-					Commit;
 				END $$
 			
 			CREATE PROCEDURE INSERT_ASK(IN stockName varchar(10), IN price int, IN userID varchar(50), IN askDate TimeStamp)

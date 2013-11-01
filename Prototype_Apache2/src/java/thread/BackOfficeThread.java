@@ -96,6 +96,11 @@ public class BackOfficeThread implements Callable<Boolean>{
         } catch (SQLException ex) {
             Logger.getLogger(BackOfficeThread.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
+            if (rs!=null){
+                try { rs.close(); } catch (SQLException e) { ; }
+                rs = null;
+            }
+            
             if (cs!=null){
                 try { cs.close(); } catch (SQLException e) { ; }
                 cs = null;
@@ -104,11 +109,6 @@ public class BackOfficeThread implements Callable<Boolean>{
             if (cn!=null){
                 try { cn.close(); } catch (SQLException e) { ; }
                 cn = null;
-            }
-            
-            if (rs!=null){
-                try { rs.close(); } catch (SQLException e) { ; }
-                rs = null;
             }
         }
         return false;
