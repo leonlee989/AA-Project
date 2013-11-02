@@ -377,7 +377,8 @@ public class ExchangeBean {
         //LOOK IN DB FOR CURRENT HIGHEST BID
         Bid highestBid = null;
         try {
-            highestBid = getHighestBid(newBidStockName).get();
+            Future<Bid> futureBid = getHighestBid(newBidStockName);
+            highestBid = futureBid.get();
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
@@ -387,7 +388,8 @@ public class ExchangeBean {
         //LOOK IN DB FOR CURRENT LOWEST ASK
         Ask lowestAsk = null;
         try {
-            lowestAsk = getLowestAsk(newBidStockName).get();
+            Future<Ask> futureAsk = getLowestAsk(newBidStockName);
+            lowestAsk = futureAsk.get();
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
@@ -428,7 +430,8 @@ public class ExchangeBean {
         // step 3: identify the current/highest bid in unfulfilledBids of the same stock
         Bid highestBid = null;
         try {
-            highestBid = getHighestBid(askStockName).get();
+            Future<Bid> futureBid = getHighestBid(askStockName);
+            highestBid = futureBid.get();
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
@@ -438,7 +441,8 @@ public class ExchangeBean {
         // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
         Ask lowestAsk = null;
         try {
-            lowestAsk = getLowestAsk(askStockName).get();
+            Future<Ask> futureAsk = getLowestAsk(askStockName);
+            lowestAsk = futureAsk.get();
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
@@ -598,6 +602,24 @@ public class ExchangeBean {
     private void executeInsertMatchedTransaction(MatchedTransaction m) {
         InsertMatchedTransaction imt = new InsertMatchedTransaction(m);
         executor.execute(imt);
+    }
+    
+    private int getLastID(){
+        ResultSet rs = null;
+        CallableStatement cs = null;
+        Connection cn = null;
+        int id = -1;
+        try{
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call LAST_ID_FROM_CLIENT}");
+            rs = cs.executeQuery();
+            id = rs.getInt("last_insert_id()");
+        }catch(SQLException e){
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        }finally{
+            close(rs,cs,cn);
+        }
+        return id;
     }
 
     private void close(ResultSet rs, CallableStatement cs, Connection cn) {

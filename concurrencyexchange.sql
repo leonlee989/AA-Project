@@ -114,9 +114,15 @@ DROP PROCEDURE IF EXISTS CLEAR_BACKOFFICE;
 DROP PROCEDURE IF EXISTS DELETE_BACKOFFICELOG;
 DROP PROCEDURE IF EXISTS GET_ALL_CREDIT;
 DROP PROCEDURE IF EXISTS DUMP_FROM_TRANSACTIONDB;
+DROP PROCEDURE IF EXISTS LAST_ID_FROM_CLIENT;
 
 DELIMITER $$
-
+			
+			CREATE PROCEDURE LAST_ID_FROM_CLIENT()
+				BEGIN
+					select last_insert_id();
+				END $$
+			
 			CREATE PROCEDURE GET_STOCK_PRICE(IN stockName varchar(10))
 				BEGIN
 					select stock.price from stock WHERE stock.stockName = stockName;
@@ -199,12 +205,12 @@ DELIMITER $$
 			
 			CREATE PROCEDURE INSERT_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
 				BEGIN
-					insert into bid (bid.id, bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (0,stockName, price, userID, bidDate);
+					insert into bid (bid.stockName, bid.price, bid.userID, bid.bidDate) VALUES (stockName, price, userID, bidDate);
 				END $$
 			
 			CREATE PROCEDURE INSERT_ASK(IN stockName varchar(10), IN price int, IN userID varchar(50), IN askDate TimeStamp)
 				BEGIN
-					insert into ask (ask.id, ask.stockName, ask.price, ask.userID, ask.askDate) VALUES (0,stockName, price, userID, askDate);
+					insert into ask (ask.stockName, ask.price, ask.userID, ask.askDate) VALUES (stockName, price, userID, askDate);
 				END $$
 			
 			CREATE PROCEDURE INSERT_BACKOFFICE_LOG(IN logStatement varchar(500))
@@ -240,7 +246,7 @@ DELIMITER $$
 			-- Part of this procedure is to handle the locking of the insert statement
 			CREATE PROCEDURE INSERT_MATCHED_TRANSACTION(IN bidPrice int, IN bidUserID varchar(50), IN bidDate TimeStamp, IN askPrice int, IN askUserID varchar(50), IN askDate TimeStamp, IN matchDate TimeStamp, IN price int, IN stockName varchar(10), IN askID int, IN bidID int)
 				BEGIN
-					insert into matchedtransactiondb (matchedtransactiondb.id, matchedtransactiondb.bidPrice, matchedtransactiondb.bidUserID, matchedtransactiondb.bidDate, matchedtransactiondb.askPrice, matchedtransactiondb.askUserID, matchedtransactiondb.askDate, matchedtransactiondb.matchDate, matchedtransactiondb.price, matchedtransactiondb.stockName, matchedtransactiondb.askID, matchedtransactiondb.bidID )  VALUES (0,bidPrice, bidUserID, bidDate, askPrice, askUserID, askDate, matchDate, price, stockName, askID, bidID);
+					insert into matchedtransactiondb (matchedtransactiondb.bidPrice, matchedtransactiondb.bidUserID, matchedtransactiondb.bidDate, matchedtransactiondb.askPrice, matchedtransactiondb.askUserID, matchedtransactiondb.askDate, matchedtransactiondb.matchDate, matchedtransactiondb.price, matchedtransactiondb.stockName, matchedtransactiondb.askID, matchedtransactiondb.bidID )  VALUES (bidPrice, bidUserID, bidDate, askPrice, askUserID, askDate, matchDate, price, stockName, askID, bidID);
 				END $$
 			
 			CREATE PROCEDURE UPDATE_STOCK_PRICE(IN price int, IN stockName varchar(10))

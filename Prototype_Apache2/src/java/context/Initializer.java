@@ -43,10 +43,9 @@ public class Initializer implements ServletContextListener {
     public void contextDestroyed(ServletContextEvent sce) {
         System.out.println("Servlet Context is destroyed....");
         Enumeration<Driver> drivers = DriverManager.getDrivers();
-        System.out.println(drivers.toString());
         while (drivers.hasMoreElements()) {
             Driver driver = drivers.nextElement();
-            System.out.println(driver.getClass().getSimpleName());
+            System.out.println("Drivers to close > " + driver.getClass().getSimpleName());
             try {
                 DriverManager.deregisterDriver(driver);
                 System.out.println("driver deregistered");
@@ -65,6 +64,7 @@ public class Initializer implements ServletContextListener {
                     try {
                         System.out.println(t.getName() + "   Shutdown thread called and executed");
                         AbandonedConnectionCleanupThread.shutdown();
+                        t = null;
                     } catch (InterruptedException e) {
                         Logger.getLogger(context.Initializer.class.getName()).log(Level.SEVERE, null, "SEVERE problem cleaning up: " + e.getMessage());
                         e.printStackTrace();

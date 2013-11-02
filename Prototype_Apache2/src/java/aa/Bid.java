@@ -53,6 +53,10 @@ public class Bid {
   public int getID(){
       return bidID;
   }
+  
+  public void setID(int i){
+      this.bidID = i;
+  }
 
   // toString
   public String toString() {

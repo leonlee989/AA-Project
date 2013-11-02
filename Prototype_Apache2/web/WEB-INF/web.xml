@@ -5,8 +5,7 @@
         <listener-class>context.Initializer</listener-class>
     </listener>
     <listener>
-        <description>NonRegisteringDriver </description>
-        <listener-class>com.mysql.jdbc.NonRegisteringDriver</listener-class>
+        <listener-class>context.StaticThreadsListener</listener-class>
     </listener>
     <session-config>
         <session-timeout>

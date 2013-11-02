@@ -53,6 +53,10 @@ public class Ask {
   public int getID(){
       return askID;
   }
+  
+  public void setID(int i){
+      this.askID = i;
+  }
 
   // toString
   public String toString() {
