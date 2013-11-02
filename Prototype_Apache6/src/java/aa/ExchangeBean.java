@@ -352,7 +352,7 @@ public class ExchangeBean {
       }
     }
     if (count == 0) {
-      return; // no unfulfilled asks of the same stock
+      return; // no unfulfilled bids of the same stock
     }
 
     // step 3: identify the current/highest bid in unfulfilledBids of the same stock

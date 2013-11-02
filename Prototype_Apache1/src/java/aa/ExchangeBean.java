@@ -364,52 +364,65 @@ public class ExchangeBean {
         if (!okToContinue) {
             return false;
         }
-        // step 1: insert new bid into unfulfilledBids
-        //Update DB
-        insertBid(newBid);
-
-        // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock
-        if (!checkIfAskExists(newBidStockName)) {
-            return true; // no unfulfilled asks of the same stock
-        }
-
-        // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-        //LOOK IN DB FOR CURRENT HIGHEST BID
-        Bid highestBid = null;
-        try {
-            Future<Bid> futureBid = getHighestBid(newBidStockName);
-            highestBid = futureBid.get();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ExecutionException ex) {
-            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-        //LOOK IN DB FOR CURRENT LOWEST ASK
+        
+        //step 1: Check if there's an ask
         Ask lowestAsk = null;
         try {
             Future<Ask> futureAsk = getLowestAsk(newBidStockName);
-            lowestAsk = futureAsk.get();
+            lowestAsk = futureAsk.get();//DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }
-        // step 5: check if there is a match.
+        
+        if (lowestAsk==null){
+            //no current asks for this stock
+            insertBid(newBid);//DB
+            return true;
+        }
+        
+        //step 2: Get the current highest bid
+        Bid highestBid = null;
+        try {
+            Future<Bid> futureBid = getHighestBid(newBidStockName);
+            highestBid = futureBid.get();//DB
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        boolean isNewHighest = false;
+        
+        //step 3: If current bid is greater than the highest bid (or if no other bid) else not insert into db first
+        if (highestBid == null || newBid.getPrice()>highestBid.getPrice()){
+            isNewHighest = true;
+            highestBid = newBid;//set the highest to the new bid
+        } else {
+            insertBid(newBid);//DB            
+        }
+        
+        // step 4: check if there is a match.
         // A match happens if the highest bid is bigger or equal to the lowest ask
+        // If the highest bid is not new, then delete the bid from database
         if (highestBid.getPrice() >= lowestAsk.getPrice()) {
             // a match is found!
-            deleteBid(highestBid);
-            deleteAsk(lowestAsk);
+            if (!isNewHighest){
+                deleteBid(highestBid);
+            }
+            deleteAsk(lowestAsk);//DB
             // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
             MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-            executeInsertMatchedTransaction(match);
+            executeInsertMatchedTransaction(match);//DB
 
             // to be included here: inform Back Office Server of match
             // to be done in v1.0
 
-            updateLatestPrice(match);
-            logMatchedTransactions();
+            updateLatestPrice(match);//DB
+            logMatchedTransactions();//DB
+        }else{
+            insertBid(newBid);
         }
 
         return true; // this bid is acknowledged
@@ -418,53 +431,62 @@ public class ExchangeBean {
     // call this method immediatley when a new ask (selling order) comes in
     public void placeNewAskAndAttemptMatch(Ask newAsk) throws SQLException {
         String askStockName = newAsk.getStock();
-        // step 1: insert new ask into unfulfilledAsks
-        //insert in DB ask
-        insertAsk(newAsk);
-        // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
-        // count keeps track of the number of unfulfilled bids for this stock
-        if (!checkIfBidExists(askStockName)) {
-            return;
-        }
-
-        // step 3: identify the current/highest bid in unfulfilledBids of the same stock
+        
+        // step 1: identify the current/highest bid in unfulfilledBids of the same stock AND IF THERE'S EVEN A BID
         Bid highestBid = null;
         try {
             Future<Bid> futureBid = getHighestBid(askStockName);
-            highestBid = futureBid.get();
+            highestBid = futureBid.get();//DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        if (highestBid == null){//if no bid, then insert and F.O.
+            insertAsk(newAsk);//DB
+            return;
+        }
 
-        // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
+        // step 2: identify the current/lowest ask in unfulfilledAsks of the same stock
         Ask lowestAsk = null;
         try {
             Future<Ask> futureAsk = getLowestAsk(askStockName);
-            lowestAsk = futureAsk.get();
+            lowestAsk = futureAsk.get();//DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }
-
-
-        // step 5: check if there is a match.
+        
+        //step 3: identify if new ask is the lowest ask (or the only ask); else then insert new ask since we're dealing with other asks
+        boolean isNewLowest = false;
+        if (lowestAsk==null|| newAsk.getPrice() < lowestAsk.getPrice() ){
+            isNewLowest = true;
+            lowestAsk = newAsk;
+        }else{
+            insertAsk(newAsk);//DB
+        }
+        
+        // step 4: check if there is a match.
         // A match happens if the lowest ask is <= highest bid
         if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-            // a match is found! Start removing from runtime & db
-            deleteBid(highestBid);
-            deleteAsk(lowestAsk);
+            // a match is found! Start removing from runtime & db; if ask is not the new lowest then remove
+            if (!isNewLowest){
+                deleteAsk(lowestAsk);//DB
+            }
+            deleteBid(highestBid);//DB
             // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
             MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-            executeInsertMatchedTransaction(match);
+            executeInsertMatchedTransaction(match);//DB
 
             // to be included here: inform Back Office Server of match
             // to be done in v1.0
 
-            updateLatestPrice(match);
-            logMatchedTransactions();
+            updateLatestPrice(match);//DB
+            logMatchedTransactions();//DB
+        }else{
+            insertAsk(newAsk);
         }
     }
 
