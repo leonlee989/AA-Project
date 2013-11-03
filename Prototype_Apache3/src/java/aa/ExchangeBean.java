@@ -1,412 +1,673 @@
 package aa;
 
-import java.io.*;
+import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.naming.NamingException;
- 
+import thread.BackOfficeThread;
+import thread.DeleteAskThread;
+import thread.DeleteBidThread;
+import thread.HighestBidThread;
+import thread.InsertAskThread;
+import thread.InsertBidThread;
+import thread.InsertMatchedTransaction;
+import thread.InsertUserCredit;
+import thread.LowestAskThread;
+import thread.MatchedTransactionLogger;
+import thread.RejectedTransactionLogger;
+import thread.UpdateCreditThread;
+
 public class ExchangeBean {
 
-  // location of log files - change if necessary
-  private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
-  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
+    private static final int NTHREADS = Runtime.getRuntime().availableProcessors();
+  //5 core threads kept alive, 100 max threads,
+    private static final ExecutorService executor = new ThreadPoolExecutor(0, NTHREADS, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+    // location of log files - change if necessary
+    private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
+    private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
+    // used to calculate remaining credit available for buyers
+    private final int DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+    // keeps track of the remaining credit limits of each buyer. This should be
+    // checked every time a buy order is submitted. Buy orders that breach the
+    // credit limit should be rejected and logged
+    // The key for this Hashtable is the user ID of the buyer, and the corresponding value is the REMAINING credit limit
+    // the remaining credit limit should not go below 0 under any circumstance!
+    // --- Credit is now stored in database. ----
+    //private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
+    private Connection connection = DbBean.getDbConnection();
 
-  // used to calculate remaining credit available for buyers
-  private final int DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+    // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
+    // this is a good chance to "clean up" everything to get ready for the next trading day
+    public void endTradingDay() throws Exception {
+        // reset attributes
+        updateLatestPrice("smu", -1);
+        updateLatestPrice("nus", -1);
+        updateLatestPrice("ntu", -1);
 
-  // used for keeping track of unfulfilled asks and bids in the system.
-  // once asks or bids are matched, they must be removed from these arraylists.
-  private ArrayList<Ask> unfulfilledAsks = new ArrayList<Ask>();
-  private ArrayList<Bid> unfulfilledBids = new ArrayList<Bid>();
-
-  // used to keep track of all matched transactions (asks/bids) in the system
-  // matchedTransactions is cleaned once the records are written to the log file successfully
-  private ArrayList<MatchedTransaction> matchedTransactions = new ArrayList<MatchedTransaction>();
-
-  // keeps track of the latest price for each of the 3 stocks
-  private int latestPriceForSmu = -1;
-  private int latestPriceForNus = -1;
-  private int latestPriceForNtu = -1;
-
-  // keeps track of the remaining credit limits of each buyer. This should be
-  // checked every time a buy order is submitted. Buy orders that breach the
-  // credit limit should be rejected and logged
-  // The key for this Hashtable is the user ID of the buyer, and the corresponding value is the REMAINING credit limit
-  // the remaining credit limit should not go below 0 under any circumstance!
-  // --- Credit is now stored in database. ----
-  //private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
-
-
-  // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
-  // this is a good chance to "clean up" everything to get ready for the next trading day
-  public void endTradingDay() throws Exception{
-    // reset attributes
-    latestPriceForSmu = -1;
-    latestPriceForNus = -1;
-    latestPriceForNtu = -1;
-
-    // dump all unfulfilled buy and sell orders
-    unfulfilledAsks.clear();
-    unfulfilledBids.clear();
-
-    // reset all credit limits of users
-    //creditRemaining.clear();
-    // Reset the credit in database #SD#.
-    DbBean.executeUpdate("delete from credit");
-  }
-
-  // returns a String of unfulfilled bids for a particular stock
-  // returns an empty string if no such bid
-  // bids are separated by <br> for display on HTML page
-  public String getUnfulfilledBidsForDisplay(String stock) {
-    String returnString = "";
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      Bid bid = unfulfilledBids.get(i);
-      if (bid.getStock().equals(stock)) {
-        returnString += bid.toString() + "<br />";
-      }
+        // dump all unfulfilled buy and sell orders from their respective tables
+        clearTable("ask");
+        clearTable("bid");
+        clearTable("credit");
     }
-    return returnString;
-  }
 
-  // returns a String of unfulfilled asks for a particular stock
-  // returns an empty string if no such ask
-  // asks are separated by <br> for display on HTML page
-  
-    public boolean sendToBackOffice(String txnDescription){
-      aa.Service service = new aa.Service();
-      boolean status = false;
-      
-      try {
-        // create new instances of remote Service objects
-        aa.ServiceSoap port = service.getServiceSoap();
+    // returns a String of unfulfilled bids for a particular stock
+    // returns an empty string if no such bid
+    // bids are separated by <br> for display on HTML page
+    public String getUnfulfilledBidsForDisplay(String stock) {
+        String returnString = "";
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_FILTERED_BIDS(?)}");
+            cs.setString(1, stock);
+            rs = cs.executeQuery();
 
-        // invoke the remote method by calling port.processTransaction().
-        // processTransaction() will return false if the teamID &/or password is wrong
-        // it will return true if the web service is correctly called
-        status = port.processTransaction("G3T7", "lime", txnDescription);
-        return status;
-      }
-      catch (Exception ex) {
-          // may come here if a time out or any other exception occurs
-          // what should you do here??
-      }
-      return false; // failure due to exception
-  }
-
-    
-  public String getUnfulfilledAsks(String stock) {
-    String returnString = "";
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      Ask ask = unfulfilledAsks.get(i);
-      if (ask.getStock().equals(stock)) {
-        returnString += ask.toString() + "<br />";
-      }
-    }
-    return returnString;
-  }
-
-  // returns the highest bid for a particular stock
-  // returns -1 if there is no bid at all
-  public int getHighestBidPrice(String stock) {
-    Bid highestBid = getHighestBid(stock);
-    if (highestBid == null) {
-      return -1;
-    } else {
-      return highestBid.getPrice();
-    }
-  }
-
-  // retrieve unfulfiled current (highest) bid for a particular stock
-  // returns null if there is no unfulfiled bid for this stock
-  private Bid getHighestBid(String stock) {
-    Bid highestBid = new Bid(null, 0, null);
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      Bid bid = unfulfilledBids.get(i);
-      if (bid.getStock().equals(stock) && bid.getPrice() >= highestBid.getPrice()) {
-        // if there are 2 bids of the same amount, the earlier one is considered the highest bid
-        if (bid.getPrice() == highestBid.getPrice()) {
-          // compare dates
-          if (bid.getDate().getTime() < highestBid.getDate().getTime()) {
-            highestBid = bid;
-          }
-        } else {
-          highestBid = bid;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String stockName = rs.getString("stockName");
+                int price = rs.getInt("price");
+                String userID = rs.getString("userID");
+                Date bidDate = rs.getTimestamp("bidDate");
+                Bid b = new Bid(stockName, price, userID, bidDate);
+                returnString += b.toString() + "<br />";
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            close(rs, cs, cn);
         }
-      }
+        return returnString;
     }
-    if (highestBid.getUserId() == null) {
-      return null; // there's no unfulfilled bid at all!
-    }
-    return highestBid;
-  }
 
-  // returns the lowest ask for a particular stock
-  // returns -1 if there is no ask at all
-  public int getLowestAskPrice(String stock) {
-    Ask lowestAsk = getLowestAsk(stock);
-    if (lowestAsk == null) {
-      return -1;
-    } else {
-      return lowestAsk.getPrice();
-    }
-  }
-
-  // retrieve unfulfiled current (lowest) ask for a particular stock
-  // returns null if there is no unfulfiled asks for this stock
-  private Ask getLowestAsk(String stock) {
-    Ask lowestAsk = new Ask(null, Integer.MAX_VALUE, null);
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      Ask ask = unfulfilledAsks.get(i);
-      if (ask.getStock().equals(stock) && ask.getPrice() <= lowestAsk.getPrice()) {
-        // if there are 2 asks of the same ask amount, the earlier one is considered the highest ask
-        if (ask.getPrice() == lowestAsk.getPrice()) {
-          // compare dates
-          if (ask.getDate().getTime() < lowestAsk.getDate().getTime()) {
-            lowestAsk = ask;
-          }
-        } else {
-          lowestAsk = ask;
+    // returns a String of unfulfilled asks for a particular stock
+    // returns an empty string if no such ask
+    // asks are separated by <br> for display on HTML page
+    public boolean sendToBackOffice(String txnDescription) {
+        try {
+            BackOfficeThread bot = new BackOfficeThread(txnDescription, executor);
+            Future<Boolean> status = executor.submit(bot);
+            boolean finalStatus = status.get();
+            return finalStatus;
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }
-      }
+        return false;
     }
-    if (lowestAsk.getUserId() == null) {
-      return null; // there's no unfulfilled asks at all!
-    }
-    return lowestAsk;
-  }
 
-  // get credit remaining for a particular buyer
-  private int getCreditRemaining(String buyerUserId) throws ClassNotFoundException, SQLException, NamingException{
-//    if (!(creditRemaining.containsKey(buyerUserId))){
-//      // this buyer is not in the hash table yet. hence create a new entry for him
-//      creditRemaining.put(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
-//    }
-//    return creditRemaining.get(buyerUserId);
-    
-   //read the credit limit from database #SD#
-   ResultSet rs = DbBean.executeSql(String.format("select credit_limit from credit where userid='%s'", buyerUserId));
-    
-    if (rs.next())
-    {
-        return rs.getInt("credit_limit");        
-    }    
-    else
-    {
-        DbBean.executeUpdate(
-                String.format("insert into credit (userid,credit_limit) values('%s',%s)",
-                buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS));
+    private boolean checkIfAskExists(String stockName) {
+        CallableStatement cs = null;
+        Connection cn = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call CHECK_IF_ASK_EXISTS(?)}");
+            cs.setString(1, stockName);
+            rs = cs.executeQuery();
+            boolean existence = rs.next();
+            return existence;
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return false;
+    }
+
+    private boolean checkIfBidExists(String stockName) {
+        CallableStatement cs = null;
+        Connection cn = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call CHECK_IF_BID_EXISTS(?)}");
+            cs.setString(1, stockName);
+            rs = cs.executeQuery();
+            boolean exists = rs.next();
+            return exists;
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return false;
+    }
+
+    private void insertBid(Bid bid) {
+        InsertBidThread ibt = new InsertBidThread(bid);
+        executor.execute(ibt);
+    }
+
+    private void insertAsk(Ask ask) {
+        InsertAskThread iat = new InsertAskThread(ask);
+        executor.execute(iat);
+    }
+
+    private void insertRejectedLog(String logStatement) {
+        Connection cn = null;
+        CallableStatement cs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_REJECTED_LOG(?)}");
+            cs.setString(1, logStatement);
+            cs.executeQuery();
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(null, cs, cn);
+        }
+    }
+
+    private void insertMatchedLog(String logStatement) {
+        Connection cn = null;
+        CallableStatement cs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_MATCHED_LOG(?)}");
+            cs.setString(1, logStatement);
+            cs.executeQuery();
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(null, cs, cn);
+        }
+    }
+
+    public String getUnfulfilledAsks(String stock) {
+        String returnString = "";
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_FILTERED_ASKS(?)}");
+            cs.setString(1, stock);
+            rs = cs.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String stockName = rs.getString("stockName");
+                int price = rs.getInt("price");
+                String userID = rs.getString("userID");
+                Date askDate = rs.getTimestamp("askDate");
+                Ask a = new Ask(stockName, price, userID, askDate);
+                returnString += a.toString() + "<br />";
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return returnString;
+    }
+
+    // returns the highest bid for a particular stock
+    // returns -1 if there is no bid at all
+    public int getHighestBidPrice(String stock) {
+        try {
+            Bid highestBid = getHighestBid(stock).get();
+            if (highestBid == null) {
+                return -1;
+            } else {
+                return highestBid.getPrice();
+            }
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return -1;
+    }
+
+    // retrieve unfulfiled current (highest) bid for a particular stock
+    // returns null if there is no unfulfiled bid for this stock
+    private Future<Bid> getHighestBid(String stock) {
+        HighestBidThread hbt = new HighestBidThread(stock);
+        return executor.submit(hbt);
+    }
+
+    // returns the lowest ask for a particular stock
+    // returns -1 if there is no ask at all
+    public int getLowestAskPrice(String stock) {
+        try {
+            Ask lowestAsk = getLowestAsk(stock).get();
+            if (lowestAsk == null) {
+                return -1;
+            } else {
+                return lowestAsk.getPrice();
+            }
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return -1;
+    }
+
+    // retrieve unfulfiled current (lowest) ask for a particular stock
+    // returns null if there is no unfulfiled asks or errors
+    private Future<Ask> getLowestAsk(String stock) {
+        LowestAskThread lat = new LowestAskThread(stock);
+        return executor.submit(lat);
+    }
+
+    // get credit remaining for a particular buyer
+    private int getCreditRemaining(String buyerUserId) {
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_USER_CREDIT_LIMIT(?)}");
+            cs.setString(1, buyerUserId);
+            rs = cs.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("credit_limit");
+            } else {
+                InsertUserCredit iuct = new InsertUserCredit(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
+                return DAILY_CREDIT_LIMIT_FOR_BUYERS;
+            }
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return 0;//will never be called unless error occurs
+    }
+
+    // check if a buyer is eligible to place an order based on his credit limit
+    // if he is eligible, this method adjusts his credit limit and returns true
+    // if he is not eligible, this method logs the bid and returns false
+    private boolean validateCreditLimit(Bid b) throws ClassNotFoundException, SQLException, NamingException {
+        // calculate the total price of this bid
+        int totalPriceOfBid = b.getPrice() * 1000; // each bid is for 1000 shares
+        int remainingCredit = getCreditRemaining(b.getUserId());
+        int newRemainingCredit = remainingCredit - totalPriceOfBid;
+
+        if (newRemainingCredit < 0) {
+            // no go - log failed bid and return false
+            logRejectedBuyOrder(b);
+            return false;
+        } else {
+            // it's ok - adjust credit limit and return true
+            //creditRemaining.put(b.getUserId(), newRemainingCredit);
+
+            //Update the credit limit in the database. #SD#
+            UpdateCreditThread uct = new UpdateCreditThread(newRemainingCredit, b.getUserId());
+            executor.execute(uct);
+            return true;
+        }
+    }
+
+    // call this to append all rejected buy orders to log file
+    private void logRejectedBuyOrder(Bid b) {
+        RejectedTransactionLogger rtl = new RejectedTransactionLogger(b, REJECTED_BUY_ORDERS_LOG_FILE);
+        executor.execute(rtl);
+    }
+
+    // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
+    private void logMatchedTransactions() {
+        try {
+            ArrayList<MatchedTransaction> transactions = getAllMatchedTransactions();
+            MatchedTransactionLogger mtl = new MatchedTransactionLogger(transactions, MATCH_LOG_FILE);
+            executor.execute(mtl);
+            clearTable("matchedTransactionDB"); // clean this out
+        } catch (Exception e) {
+            // Think about what should happen here...
+            e.printStackTrace();
+        }
+    }
+
+    // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
+    // this method is used by viewOrders.jsp for debugging purposes
+    public String getAllCreditRemainingForDisplay() throws Exception {
+        String returnString = "";
+
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_ALL_CREDIT()}");
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                returnString += "<tr><td>" + rs.getString("userid") + "</td><td>" + rs.getInt("credit_limit") + "</td></tr>";
+            }
+        } catch (SQLException e) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return returnString;
+    }
+
+    // call this method immediatley when a new bid (buying order) comes in
+    // this method returns false if this buy order has been rejected because of a credit limit breach
+    // it returns true if the bid has been successfully added
+    public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception {
+        // step 0: check if this bid is valid based on the buyer's credit limit
+        String newBidStockName = newBid.getStock();
+        boolean okToContinue = validateCreditLimit(newBid);
+        if (!okToContinue) {
+            return false;
+        }
         
-        return DAILY_CREDIT_LIMIT_FOR_BUYERS;
+        //step 1: Check if there's an ask
+        Ask lowestAsk = null;
+        try {
+            Future<Ask> futureAsk = getLowestAsk(newBidStockName);
+            lowestAsk = futureAsk.get();//DB
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        if (lowestAsk==null){
+            //no current asks for this stock
+            insertBid(newBid);//DB
+            return true;
+        }
+        
+        //step 2: Get the current highest bid
+        Bid highestBid = null;
+        try {
+            Future<Bid> futureBid = getHighestBid(newBidStockName);
+            highestBid = futureBid.get();//DB
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        boolean isNewHighest = false;
+        
+        //step 3: If current bid is greater than the highest bid (or if no other bid) else not insert into db first
+        if (highestBid == null || newBid.getPrice()>highestBid.getPrice()){
+            isNewHighest = true;
+            highestBid = newBid;//set the highest to the new bid
+        } else {
+            insertBid(newBid);//DB            
+        }
+        
+        // step 4: check if there is a match.
+        // A match happens if the highest bid is bigger or equal to the lowest ask
+        // If the highest bid is not new, then delete the bid from database
+        if (highestBid.getPrice() >= lowestAsk.getPrice()) {
+            // a match is found!
+            if (!isNewHighest){
+                deleteBid(highestBid);
+            }
+            deleteAsk(lowestAsk);//DB
+            // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
+            MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
+            executeInsertMatchedTransaction(match);//DB
+
+            // to be included here: inform Back Office Server of match
+            // to be done in v1.0
+
+            updateLatestPrice(match);//DB
+            logMatchedTransactions();//DB
+        }else{
+            insertBid(newBid);
+        }
+
+        return true; // this bid is acknowledged
+    }
+
+    // call this method immediatley when a new ask (selling order) comes in
+    public void placeNewAskAndAttemptMatch(Ask newAsk) throws SQLException {
+        String askStockName = newAsk.getStock();
+        
+        // step 1: identify the current/highest bid in unfulfilledBids of the same stock AND IF THERE'S EVEN A BID
+        Bid highestBid = null;
+        try {
+            Future<Bid> futureBid = getHighestBid(askStockName);
+            highestBid = futureBid.get();//DB
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        if (highestBid == null){//if no bid, then insert and F.O.
+            insertAsk(newAsk);//DB
+            return;
+        }
+
+        // step 2: identify the current/lowest ask in unfulfilledAsks of the same stock
+        Ask lowestAsk = null;
+        try {
+            Future<Ask> futureAsk = getLowestAsk(askStockName);
+            lowestAsk = futureAsk.get();//DB
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //step 3: identify if new ask is the lowest ask (or the only ask); else then insert new ask since we're dealing with other asks
+        boolean isNewLowest = false;
+        if (lowestAsk==null|| newAsk.getPrice() < lowestAsk.getPrice() ){
+            isNewLowest = true;
+            lowestAsk = newAsk;
+        }else{
+            insertAsk(newAsk);//DB
+        }
+        
+        // step 4: check if there is a match.
+        // A match happens if the lowest ask is <= highest bid
+        if (lowestAsk.getPrice() <= highestBid.getPrice()) {
+            // a match is found! Start removing from runtime & db; if ask is not the new lowest then remove
+            if (!isNewLowest){
+                deleteAsk(lowestAsk);//DB
+            }
+            deleteBid(highestBid);//DB
+            // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
+            MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
+            executeInsertMatchedTransaction(match);//DB
+
+            // to be included here: inform Back Office Server of match
+            // to be done in v1.0
+
+            updateLatestPrice(match);//DB
+            logMatchedTransactions();//DB
+        }else{
+            insertAsk(newAsk);
+        }
+    }
+
+    public ArrayList<MatchedTransaction> getAllMatchedTransactions() {
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call DUMP_FROM_TRANSACTIONDB}");
+            ArrayList<MatchedTransaction> transactions = new ArrayList<MatchedTransaction>();
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                int bidPrice = rs.getInt("bidPrice");
+                String bidUserId = rs.getString("bidUserID");
+                Date bidDate = rs.getTimestamp("bidDate");
+                int askPrice = rs.getInt("askPrice");
+                String askUserId = rs.getString("askUserID");
+                Date askDate = rs.getTimestamp("askDate");
+                Date matchDate = rs.getTimestamp("matchDate");
+                int price = rs.getInt("price");
+                String stock = rs.getString("stockName");
+                Ask ask = new Ask(stock, askPrice, askUserId, askDate);
+                Bid bid = new Bid(stock, bidPrice, bidUserId, bidDate);
+                transactions.add(new MatchedTransaction(bid, ask, matchDate, price));
+            }
+            return transactions;
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return null;
+    }
+
+    private void updateLatestPrice(String stock, int price) {
+        CallableStatement cs = null;
+        Connection cn = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call UPDATE_STOCK_PRICE(?,?)}");
+            cs.setInt(1, price);
+            cs.setString(2, stock);
+            cs.executeQuery();
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            executeInsertPrice(stock, price);//if stock is not found, insert new value for the stock
+        } finally {
+            close(null, cs, cn);
+        }
+    }
+
+    // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
+    // based on the MatchedTransaction object passed in
+    private void updateLatestPrice(MatchedTransaction m) {
+        String stock = m.getStock();
+        int price = m.getPrice();
+        updateLatestPrice(stock, price);
+    }
+
+    // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
+    // based on the MatchedTransaction object passed in
+    public int getLatestPrice(String stock) {
+        Connection cn = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_STOCK_PRICE(?)}");
+            cs.setString(1, stock);
+            rs = cs.executeQuery();
+            if (rs == null) {
+                executeInsertPrice(stock, -1);
+            }
+            if (rs.next()) {
+                return rs.getInt("price");
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            close(rs, cs, cn);
+        }
+        return -1;//no such stock
+    }
+
+    private void clearTable(String tableName) {
+        try {
+            try {
+                DbBean.executeUpdate("delete from " + tableName);
+            } catch (NamingException ex) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (ClassNotFoundException ex) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            try {
+                DbBean.executeUpdate("SET SQL_SAFE_UPDATES=0;");
+                DbBean.executeUpdate("delete from " + tableName);
+            } catch (SQLException ex1) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex1);
+            } catch (NamingException ex2) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex2);
+            } catch (ClassNotFoundException ex3) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex3);
+            }
+        }
+    }
+
+    private void deleteAsk(Ask ask) {
+        DeleteAskThread dat = new DeleteAskThread(ask);
+        executor.execute(dat);
+    }
+
+    private void deleteBid(Bid bid) {
+        DeleteBidThread dbt = new DeleteBidThread(bid);
+        executor.execute(dbt);
+    }
+
+    private void executeInsertPrice(String stock, int price) {
+        Connection cn = null;
+        CallableStatement cs = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call INSERT_PRICE(?,?)}");
+            cs.setInt(1, price);
+            cs.setString(2, stock);
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            close(null, cs, cn);
+        }
+    }
+
+    private void executeInsertMatchedTransaction(MatchedTransaction m) {
+        InsertMatchedTransaction imt = new InsertMatchedTransaction(m);
+        executor.execute(imt);
     }
     
-  }
-
-  // check if a buyer is eligible to place an order based on his credit limit
-  // if he is eligible, this method adjusts his credit limit and returns true
-  // if he is not eligible, this method logs the bid and returns false
-  private boolean validateCreditLimit(Bid b) throws ClassNotFoundException, SQLException,NamingException{
-    // calculate the total price of this bid
-    int totalPriceOfBid = b.getPrice() * 1000; // each bid is for 1000 shares
-    int remainingCredit = getCreditRemaining(b.getUserId());
-    int newRemainingCredit = remainingCredit - totalPriceOfBid;
-
-    if (newRemainingCredit < 0){
-      // no go - log failed bid and return false
-      logRejectedBuyOrder(b);
-      return false;
-    }
-    else {
-      // it's ok - adjust credit limit and return true
-      //creditRemaining.put(b.getUserId(), newRemainingCredit);
-      
-     //Update the credit limit in the database. #SD#
-      DbBean.executeUpdate(String.format("update credit set credit_limit=%s where userid='%s'", newRemainingCredit, b.getUserId()));
-      
-      return true;
-    }
-  }
-
-  // call this to append all rejected buy orders to log file
-  private void logRejectedBuyOrder(Bid b) {
-    try {
-      PrintWriter outFile = new PrintWriter(new FileWriter(REJECTED_BUY_ORDERS_LOG_FILE, true));
-      outFile.append(b.toString() + "\n");
-      outFile.close();
-    } catch (IOException e) {
-      // Think about what should happen here...
-      System.out.println("IO EXCEPTIOn: Cannot write to file");
-      e.printStackTrace();
-    } catch (Exception e) {
-      // Think about what should happen here...
-      System.out.println("EXCEPTION: Cannot write to file");
-      e.printStackTrace();
-    }
-  }
-
-  // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
-  private void logMatchedTransactions() {
-    try {
-      PrintWriter outFile = new PrintWriter(new FileWriter(MATCH_LOG_FILE, true));
-      for (MatchedTransaction m : matchedTransactions) {
-        outFile.append(m.toString() + "\n");
-      }
-      matchedTransactions.clear(); // clean this out
-      outFile.close();
-    } catch (IOException e) {
-      // Think about what should happen here...
-      System.out.println("IO EXCEPTIOn: Cannot write to file");
-      e.printStackTrace();
-    } catch (Exception e) {
-      // Think about what should happen here...
-      System.out.println("EXCEPTION: Cannot write to file");
-      e.printStackTrace();
-    }
-  }
-
-  // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
-  // this method is used by viewOrders.jsp for debugging purposes
-  public String getAllCreditRemainingForDisplay() throws Exception{
-    String returnString = "";
-
-//    Enumeration items = creditRemaining.keys();
-//
-//    while (items.hasMoreElements()){
-//      String key = (String)items.nextElement();
-//      int value = creditRemaining.get(key);
-//      returnString += "<tr><td>" + key + "</td><td>" + value + "</td></tr>";
-//    }
-    
-    //get the credit limit for all users from database. #SD#
-    ResultSet rs = DbBean.executeSql("select * from credit");
-    while(rs.next())
-    {
-        returnString += "<tr><td>" + rs.getString("userid") + "</td><td>" + rs.getInt("credit_limit") + "</td></tr>";        
-    }
-    return returnString;
-  }
-
-  // call this method immediatley when a new bid (buying order) comes in
-  // this method returns false if this buy order has been rejected because of a credit limit breach
-  // it returns true if the bid has been successfully added
-  public boolean placeNewBidAndAttemptMatch(Bid newBid) throws Exception{
-    // step 0: check if this bid is valid based on the buyer's credit limit
-    boolean okToContinue = validateCreditLimit(newBid);
-    if (!okToContinue){
-      return false; 
+    private int getLastID(){
+        ResultSet rs = null;
+        CallableStatement cs = null;
+        Connection cn = null;
+        int id = -1;
+        try{
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call LAST_ID_FROM_CLIENT}");
+            rs = cs.executeQuery();
+            id = rs.getInt("last_insert_id()");
+        }catch(SQLException e){
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+        }finally{
+            close(rs,cs,cn);
+        }
+        return id;
     }
 
-    // step 1: insert new bid into unfulfilledBids
-    unfulfilledBids.add(newBid);
-
-    // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
-    // count keeps track of the number of unfulfilled asks for this stock
-    int count = 0;
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      if (unfulfilledAsks.get(i).getStock().equals(newBid.getStock())) {
-        count++;
-      }
+    private void close(ResultSet rs, CallableStatement cs, Connection cn) {
+        if (rs != null) {
+            try {
+                rs.close();
+            } catch (SQLException e) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+            }
+            rs = null;
+        }
+        if (cs != null) {
+            try {
+                cs.close();
+            } catch (SQLException e) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+            }
+            cs = null;
+        }
+        if (cn != null) {
+            try {
+                cn.close();
+            } catch (SQLException e) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
+            }
+            cn = null;
+        }
     }
-    if (count == 0) {
-      return true; // no unfulfilled asks of the same stock
-    }
-
-    // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-    Bid highestBid = getHighestBid(newBid.getStock());
-
-    // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-    Ask lowestAsk = getLowestAsk(newBid.getStock());
-
-    // step 5: check if there is a match.
-    // A match happens if the highest bid is bigger or equal to the lowest ask
-    if (highestBid.getPrice() >= lowestAsk.getPrice()) {
-      // a match is found!
-      unfulfilledBids.remove(highestBid);
-      unfulfilledAsks.remove(lowestAsk);
-      // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
-      MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-      matchedTransactions.add(match);
-
-      // to be included here: inform Back Office Server of match
-      // to be done in v1.0
-
-      updateLatestPrice(match);
-      logMatchedTransactions();
-    }
-
-    return true; // this bid is acknowledged
-  }
-
-  // call this method immediatley when a new ask (selling order) comes in
-  public void placeNewAskAndAttemptMatch(Ask newAsk) {
-    // step 1: insert new ask into unfulfilledAsks
-    unfulfilledAsks.add(newAsk);
-
-    // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
-    // count keeps track of the number of unfulfilled bids for this stock
-    int count = 0;
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      if (unfulfilledBids.get(i).getStock().equals(newAsk.getStock())) {
-        count++;
-      }
-    }
-    if (count == 0) {
-      return; // no unfulfilled asks of the same stock
-    }
-
-    // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-    Bid highestBid = getHighestBid(newAsk.getStock());
-
-    // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-    Ask lowestAsk = getLowestAsk(newAsk.getStock());
-
-
-    // step 5: check if there is a match.
-    // A match happens if the lowest ask is <= highest bid
-    if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-      // a match is found!
-      unfulfilledBids.remove(highestBid);
-      unfulfilledAsks.remove(lowestAsk);
-      // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-      MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-      matchedTransactions.add(match);
-
-      // to be included here: inform Back Office Server of match
-      // to be done in v1.0
-
-      updateLatestPrice(match);
-      logMatchedTransactions();
-    }
-  }
-
-  // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
-  // based on the MatchedTransaction object passed in
-  private void updateLatestPrice(MatchedTransaction m) {
-    String stock = m.getStock();
-    int price = m.getPrice();
-    // update the correct attribute
-    if (stock.equals("smu")) {
-      latestPriceForSmu = price;
-    } else if (stock.equals("nus")) {
-      latestPriceForNus = price;
-    } else if (stock.equals("ntu")) {
-      latestPriceForNtu = price;
-    }
-  }
-
-  // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
-  // based on the MatchedTransaction object passed in
-  public int getLatestPrice(String stock) {
-    if (stock.equals("smu")) {
-      return latestPriceForSmu;
-    } else if (stock.equals("nus")) {
-      return latestPriceForNus;
-    } else if (stock.equals("ntu")) {
-      return latestPriceForNtu;
-    }
-    return -1; // no such stock
-  }
-  
-  
 }

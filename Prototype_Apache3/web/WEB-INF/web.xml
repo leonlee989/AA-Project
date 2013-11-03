@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+    <listener>
+        <description>ServletContextListener</description>
+        <listener-class>context.Initializer</listener-class>
+    </listener>
+    <listener>
+        <listener-class>context.StaticThreadsListener</listener-class>
+    </listener>
     <session-config>
         <session-timeout>
             30
@@ -8,4 +15,25 @@
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
+    <env-entry>
+        <env-entry-name>dbURL</env-entry-name>
+        <env-entry-type>java.lang.String</env-entry-type>
+        <env-entry-value>jdbc:mysql://localhost:3306/exchangemel</env-entry-value>
+    </env-entry>
+    <env-entry>
+        <env-entry-name>dbUser</env-entry-name>
+        <env-entry-type>java.lang.String</env-entry-type>
+        <env-entry-value>root</env-entry-value>
+    </env-entry>
+    <env-entry>
+        <env-entry-name>dbPassword</env-entry-name>
+        <env-entry-type>java.lang.String</env-entry-type>
+        <env-entry-value>root</env-entry-value>
+    </env-entry>
+    <resource-ref>
+      <description>DB Connection</description>
+      <res-ref-name>jdbc/ExchangeDB</res-ref-name>
+      <res-type>javax.sql.DataSource</res-type>
+      <res-auth>Container</res-auth>
+    </resource-ref>
 </web-app>
