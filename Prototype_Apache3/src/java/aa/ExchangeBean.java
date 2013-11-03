@@ -31,7 +31,7 @@ public class ExchangeBean {
 
     private static final int NTHREADS = Runtime.getRuntime().availableProcessors();
   //5 core threads kept alive, 100 max threads,
-    private static final ExecutorService executor = new ThreadPoolExecutor(0, NTHREADS, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+    private static final ExecutorService executor = new ThreadPoolExecutor(0, 50, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
     // location of log files - change if necessary
     private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
     private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
@@ -96,13 +96,10 @@ public class ExchangeBean {
     // asks are separated by <br> for display on HTML page
     public boolean sendToBackOffice(String txnDescription) {
         try {
-            BackOfficeThread bot = new BackOfficeThread(txnDescription, executor);
-            Future<Boolean> status = executor.submit(bot);
-            boolean finalStatus = status.get();
-            return finalStatus;
-        } catch (InterruptedException ex) {
-            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ExecutionException ex) {
+            BackOfficeThread bot = new BackOfficeThread(executor);
+            //boolean finalStatus = status.get();
+            return true;
+        } catch (Exception ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         }
         return false;
