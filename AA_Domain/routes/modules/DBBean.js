@@ -1,6 +1,11 @@
 var mysql = require("mysql");
 
 // Connection configuration
+var clusterConfig = {
+  removeNodeErrorCount: 1, // Remove the node immediately when connection fails.
+  defaultSelector: 'ORDER',
+};
+
 var conn_conf = {
 	host : 'localhost',
 	port : 3306,
@@ -9,100 +14,106 @@ var conn_conf = {
 	database : 'exchange'
 }
 
-var connection = undefined;
+var conn_conf_Master = {
+	host : '192.168.0.2',
+	port : 7000,
+	user : 'root',
+	password : '',
+	database : 'exchange'
+}
+
+var conn_conf_Slave = {
+	host : '192.168.0.3',
+	port : 7000,
+	user : 'root',
+	password : '',
+	database : 'exchange'
+}
+
+var poolCluster = undefined;
 
 function DBBean() {
 }
 
-DBBean.prototype.estab_connection =  function() {
-	connection = mysql.createConnection(conn_conf);
-	
-	connection.connect(function(err) {
-	
-		if (err) {
-			console.log("Connection Failed, unable to connection to DB");
-			return false;
-		} else {
-			console.log("Connected to " + conn_conf.database + " on " + conn_conf.host);
-			return true;
-		}
-	});
+DBBean.prototype.estab_connection = function() {
+	if (poolCluster == undefined) {
+		poolCluster = mysql.createPoolCluster(clusterConfig);
+		
+		poolCluster.add(conn_conf); //annonymous
+		poolCluster.add("MASTER", conn_conf_Master); //Master
+		poolCluster.add("SLAVE1", conn_conf_Slave); //Slave 1
+	}
 }
 
 DBBean.prototype.executeSql = function(stringSQL, results) {
 
-	if (connection == undefined) {
-		return undefined;
+	if (poolCluster == undefined) {
+		this.estab_connection();
 	}
 	
-	connection.query(stringSQL, function(err, rows) {
-		console.log("Executing SQL statement...\n" + stringSQL);
-		
-		if (err) {
-			console.log(err);
-			console.log("Error in retrieval of information...");
-			results(undefined);
+	poolCluster.getConnection(function(err, connection) {
+		if (connection != null) {
+			connection.query(stringSQL, function(err, rows) {
+				console.log("Executing SQL statement...\n" + stringSQL);
+				
+				if (err) {
+					console.log(err);
+					console.log("Error in retrieval of information...");
+					results(undefined);
+				} else {
+					// Data Found
+					console.log("Success in retrieval of information...");
+					for (var i=0; i<rows.length; i++) {
+						console.log(rows[i]);
+					}
+					
+					results(rows);
+				}
+				
+				connection.release();
+			});
 		} else {
-			// Data Found
-			console.log("Success in retrieval of information...");
-			for (var i=0; i<rows.length; i++) {
-				console.log(rows[i]);
-			}
-			
-			results(rows);
-		}
+			console.log("Connection failed");
+		}	
+	});
+	
+	poolCluster.on('remove', function (nodeId) {
+		console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
+		results('REMOVED NODE : ' + nodeId);
 	});
 }
 
 DBBean.prototype.executeUpdate = function(strSQL) {
-	if (connection == undefined) {
-		return undefined;
+	if (poolCluster == undefined) {
+		this.estab_connection();
 	}
 	
-	connection.query(strSQL, function(err, results) {
-		console.log("Executing SQL statement...\n" + strSQL);
-		
-		if (err) {
-			console.log(err);
-			console.log("Error in executing sql...");
-			return undefined;
+	poolCluster.getConnection(function(err, connection) {
+		if (connection != null) {
+			connection.query(strSQL, function(err, results) {
+				console.log("Executing SQL statement...\n" + strSQL);
+				
+				if (err) {
+					console.log(err);
+					console.log("Error in executing sql...");
+				} else {
+					console.log("Success in executing sql...");
+				}
+				
+				connection.release();
+			});
 		} else {
-			console.log("Success in executing sql...");
-			return results;
-		}
+			console.log("Connection failed");
+		}	
+	});
+	
+	poolCluster.on('remove', function (nodeId) {
+	  console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
 	});
 }
 
 DBBean.prototype.close = function() {
-	connection.end();
-}
-
-function updateStatement(tableName, fieldName, conditionFields, condition, valueList) {
-	if (!connection) {
-		return undefined;
-	}
-	
-	var stringFields = "";
-	
-	for (var i=0; i<fieldName.length; i++) {
-		if (i = 0) {
-			stringFields += fieldName[i] + " = ? ";
-		} else {
-			stringFields += ", " + fieldName[i] + " = ? "
-		}
-	}
-	
-	connection.query("UPDATE " + tableName + " SET " + stringFields + " WHERE " + conditionFields + " = ?", valueList, function(err, results) {
-		console.log("Executing SQL statement...\n" + "UPDATE " + tableName + " SET " + stringFields + " WHERE " + conditionFields + " = ?\n");
-		
-		if (err) {
-			console.log("Error in updating information...");
-			return undefined;
-		} else {
-			console.log("Successful in updating information...");
-			return results;
-		}
-	});
+	poolCluster.end();
 }
 
 module.exports.DBBean = DBBean;

@@ -25,7 +25,7 @@ public class DbBean {
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";
     private static Connection dbConnection;
-    static String dbURL = "jdbc:mysql://192.168.0.20:7000/exchange";
+    static String dbURL = "jdbc:mysql://192.168.0.6:7000/exchange";
     static String dbUser = "root";
     static String dbPassword = "";
     //Read JDBC parameters from web.xml

@@ -3,6 +3,7 @@ var bidModule = require("./Bid");
 var askModule = require("./Ask");
 var matchedTransactionModule = require("./MatchedTransaction");
 var fs = require('fs');
+var request = require('request');
 
 var db_module = require("./DBBean");
 var db = undefined;
@@ -41,7 +42,90 @@ function ExchangeBean() {
 	db.removeAllSql("credit");
  }
  
-// returns a String of unfulfilled bids for a particular stocks
+ ExchangeBean.prototype.sendToBackOffice = function(IPAddress) {	
+	var module = this;
+	
+	var domain = "10.0.106.239";
+	if (IPAddress != "") {
+		// Open Secondary Connection
+		console.log("Secondary connection opened");
+		domain = IPAddress;
+	}
+	
+	var url = "http://" + domain + ":81/aabo/Service.asmx/ProcessTransaction"
+	var post_data = {
+	  'teamId' : 'G3T7',
+	  'teamPassword': 'lime'
+	};
+			
+	var rs = fs.createReadStream(this.MATCH_LOG_FILE);
+	rs.setEncoding("utf8");
+	
+	// File Opened
+	rs.once('open', function(fd) {  
+		console.log( 'File Opened' );  
+	});  
+	
+	// File Closed
+	rs.once('close', function() {  
+		console.log( 'File closed');  
+	});  
+
+	// File Read
+	rs.once('data', function(data) {  
+		console.log( 'Reading data...' );  
+		console.log( data );  
+		var value = data.split("\n");
+
+		value.forEach(function(matchedTransactions) {
+			
+			if (matchedTransactions != "") {
+				
+				post_data.transactionDescription = matchedTransactions;
+				request.post(
+					url,
+					{form: post_data},
+					function (error, response, body) {
+						
+						if (!error && response.statusCode == 200) {
+							console.log(body);
+							module.renderResponse(body);
+						} else {
+							console.log("Connection Failed: Page cannot be loaded");		
+							module.sendToBackOffice("10.4.12.30");
+						}
+					}
+				);
+			}
+		});
+		
+		// Remove data from file
+		fs.writeFile(module.MATCH_LOG_FILE, "", function(err) {
+			if (!err) {
+				console.log("Content is being removed from " + module.MATCH_LOG_FILE);
+			} else {
+				console.log("Error in removing the content");
+			}
+		});
+	});  
+
+	// File error
+	rs.once('error', function(exception) {  
+		console.log( 'rs_exception...' );  
+		console.log( exception );  
+	});  
+}
+
+// condition set when when response is given back from the remote server
+ExchangeBean.prototype.renderResponse = function(body) {
+	var index = body.search("true");
+	
+	if (index == -1) {
+		console.log("Alert - Log authentication to the remote server failed");
+	}
+}
+
+ // returns a String of unfulfilled bids for a particular stocks
  // returns an empty string if no such bid
  // bods are separated by <br> for display on HTML page
 ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock, callback) {

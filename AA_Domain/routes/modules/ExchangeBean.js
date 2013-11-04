@@ -3,6 +3,8 @@ var bidModule = require("./Bid");
 var askModule = require("./Ask");
 var matchedTransactionModule = require("./MatchedTransaction");
 var fs = require('fs');
+var request = require('request');
+
 var db_module = require("./DBBean");
 var db = undefined;
 
@@ -12,7 +14,7 @@ function ExchangeBean() {
 	this.REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
 
 	// used to calculate remaining credit available for buyers
-	this.DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+	this.DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000000;
 
 	// keeps track of the lastest price for each of the 3 stocks
 	this.latestPriceForSmu = -1;
@@ -27,7 +29,11 @@ function ExchangeBean() {
  // this method is called once at the end trading day. It can be called manually, or by a timed daemon
  // this is a good chance to "clean up" everything to get ready for the next trading
  ExchangeBean.prototype.endTradingDay = function() {
-	// reset attributes
+	
+	//try {
+		//db.estab_connection();
+		
+		// reset attributes
 	this.latestPriceForSmu = -1;
 	this.latestPriceForNus = -1;
 	this.latestPriceForNtu = -1;
@@ -38,8 +44,95 @@ function ExchangeBean() {
 	
 	// reset all credit limits of users
 	db.executeUpdate("delete from credit");
+	//} catch (err) {
+		//console.log("Connecting database failed");
+	//} finally {
+		//db.close();
+	//};
  }
  
+ ExchangeBean.prototype.sendToBackOffice = function(IPAddress) {	
+	var module = this;
+	
+	var domain = "10.0.106.239";
+	if (IPAddress != "") {
+		// Open Secondary Connection
+		console.log("Secondary connection opened");
+		domain = IPAddress;
+	}
+	
+	var url = "http://" + domain + ":81/aabo/Service.asmx/ProcessTransaction"
+	var post_data = {
+	  'teamId' : 'G3T7',
+	  'teamPassword': 'lime'
+	};
+			
+	var rs = fs.createReadStream(this.MATCH_LOG_FILE);
+	rs.setEncoding("utf8");
+	
+	// File Opened
+	rs.once('open', function(fd) {  
+		console.log( 'File Opened' );  
+	});  
+	
+	// File Closed
+	rs.once('close', function() {  
+		console.log( 'File closed');  
+	});  
+
+	// File Read
+	rs.once('data', function(data) {  
+		console.log( 'Reading data...' );  
+		console.log( data );  
+		var value = data.split("\n");
+
+		value.forEach(function(matchedTransactions) {
+			
+			if (matchedTransactions != "") {
+				
+				post_data.transactionDescription = matchedTransactions;
+				request.post(
+					url,
+					{form: post_data},
+					function (error, response, body) {
+						
+						if (!error && response.statusCode == 200) {
+							module.renderResponse(body);
+						} else {
+							console.log("Connection Failed: Page cannot be loaded");		
+							module.sendToBackOffice("10.4.12.30");
+						}
+					}
+				);
+			}
+		});
+		
+		// Remove data from file
+		fs.writeFile(module.MATCH_LOG_FILE, "", function(err) {
+			if (!err) {
+				console.log("Content is being removed from " + module.MATCH_LOG_FILE);
+			} else {
+				console.log("Error in removing the content");
+			}
+		});
+	});  
+
+	// File error
+	rs.once('error', function(exception) {  
+		console.log( 'rs_exception...' );  
+		console.log( exception );  
+	});  
+}
+
+// condition set when when response is given back from the remote server
+ExchangeBean.prototype.renderResponse = function(body) {
+	var index = body.search("true");
+	
+	if (index == -1) {
+		console.log("Alert - Log authentication to the remote server failed");
+	}
+}
+
  // returns a String of unfulfilled bids for a particular stocks
  // returns an empty string if no such bid
  // bods are separated by <br> for display on HTML page
@@ -87,7 +180,7 @@ ExchangeBean.prototype.getHighestBidPrice = function(stock, callback) {
 }
  
 // retrieve unfulfiled current (highest) bid for a particular stock
-// return null if there is no unfulfiled bid for this stock
+// return null if there is no unfulfiled bid for this stock	
 ExchangeBean.prototype.getHighestBid = function(stock, callback) {
 	var highestBid = new bidModule.Bid(undefined, 0, undefined, undefined);
 	
@@ -167,7 +260,7 @@ ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
 		} else {
 			db.executeUpdate("insert into credit (userid, credit_limit) values ('" + buyerUserId + "', " + module.DAILY_CREDIT_LIMIT_FOR_BUYERS + ")");
 			db.executeSql("select credit_limit from credit where userid='" + buyerUserId + "'", function(value) {
-				callback(value[0].credit_limit);
+				callback(value.credit_limit);
 			});
 		}
 	});
@@ -216,9 +309,6 @@ ExchangeBean.prototype.logRejectedBuyOrder = function(bid) {
 ExchangeBean.prototype.logMatchedTransactions = function(transaction) {
 	var log_File = this.MATCH_LOG_FILE;
 	
-	// Store in database
-	db.executeUpdate("insert into matchedlog (logStatement) values ('" + transaction.toString() + "')");
-	
 	//Store in log file
 	fs.appendFile(log_File, transaction.toString() + "\n", function(err) {
 		if(err) {
@@ -227,6 +317,9 @@ ExchangeBean.prototype.logMatchedTransactions = function(transaction) {
 			console.log("The file was saved!");
 		}
 	});
+	
+	// Store in database
+	db.executeUpdate("insert into matchedlog (logStatement) values ('" + transaction.toString() + "')");
 }
 
 // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
@@ -248,6 +341,7 @@ ExchangeBean.prototype.getAllCreditRemainingForDisplay = function(callback) {
 // it returns true if the bid has been successfully added
 ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 	var module = this;
+	//throw new Error("hello world");
 	this.validateCreditLimit(newBid, function(value) {
 		
 		if (!value) {

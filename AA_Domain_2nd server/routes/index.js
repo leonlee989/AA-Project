@@ -204,6 +204,7 @@ exports.viewOrders = function(req, res) {
 exports.endTradingDay = function(req, res) {
 	exchangeBean.endTradingDay(); // clean up instance variables
     //res.clear();
+	exchangeBean.sendToBackOffice("");
 	
 	res.render('endTradingDay.ejs');
 }

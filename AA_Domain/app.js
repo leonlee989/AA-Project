@@ -11,7 +11,7 @@ var routes = require('./routes');
 var app = express();
 
 // all environments
-app.set('port', process.env.PORT || 3000, "127.0.0.1");
+app.set('port', process.env.PORT || 3002, "127.0.0.1");
 
 // config
 app.set('views', __dirname + '/views');
@@ -50,18 +50,14 @@ app.get('/login', routes.login);
 app.get('/logout', routes.logout);
 
 app.get('/buy', routes.authenUser, routes.buy);
-app.get('/buySuccess', routes.authenUser, routes.buySuccess);
-app.get('/buyFail', routes.authenUser, routes.buyFail);
-
 app.get('/sell', routes.authenUser, routes.sell);
-app.get('/sellSuccess', routes.authenUser, routes.sellSuccess);
 
 app.get('/current', routes.current);
 app.get('/viewOrders', routes.viewOrders);
 app.get('/endTradingDay', routes.endTradingDay);
 
 // Operations 
-app.post('/processlogin', routes.processlogin);
+app.post('/processLogin', routes.processlogin);
 app.post('/processBuy', routes.authenUser, routes.processBuy);
 app.post('/processSell', routes.authenUser, routes.processSell);
 
@@ -69,3 +65,4 @@ app.post('/processSell', routes.authenUser, routes.processSell);
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
 });
+
