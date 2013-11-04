@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS exchange;
-CREATE DATABASE exchange;
-USE exchange;
+DROP DATABASE IF EXISTS exchangemel;
+CREATE DATABASE exchangemel;
+USE exchangemel;
 
 DROP TABLE IF EXISTS credit;
 CREATE TABLE credit (
@@ -117,7 +117,7 @@ DROP PROCEDURE IF EXISTS DUMP_FROM_TRANSACTIONDB;
 DROP PROCEDURE IF EXISTS LAST_ID_FROM_CLIENT;
 
 DELIMITER $$
-			
+
 			CREATE PROCEDURE LAST_ID_FROM_CLIENT()
 				BEGIN
 					select last_insert_id();
@@ -187,6 +187,11 @@ DELIMITER $$
 				BEGIN
 					update credit set credit.credit_limit= credit_limit where credit.userid=userid;
 				END $$
+				
+			CREATE PROCEDURE FOR_UPDATE_CREDIT_LIMIT(IN userid varchar(20))
+				BEGIN
+					select credit.credit_limit from credit where credit.userid=userid for update;
+				END $$
 			
 			CREATE PROCEDURE DELETE_BACKOFFICELOG(IN logStatement varchar(500))
 				BEGIN
@@ -247,6 +252,11 @@ DELIMITER $$
 			CREATE PROCEDURE INSERT_MATCHED_TRANSACTION(IN bidPrice int, IN bidUserID varchar(50), IN bidDate TimeStamp, IN askPrice int, IN askUserID varchar(50), IN askDate TimeStamp, IN matchDate TimeStamp, IN price int, IN stockName varchar(10), IN askID int, IN bidID int)
 				BEGIN
 					insert into matchedtransactiondb (matchedtransactiondb.bidPrice, matchedtransactiondb.bidUserID, matchedtransactiondb.bidDate, matchedtransactiondb.askPrice, matchedtransactiondb.askUserID, matchedtransactiondb.askDate, matchedtransactiondb.matchDate, matchedtransactiondb.price, matchedtransactiondb.stockName, matchedtransactiondb.askID, matchedtransactiondb.bidID )  VALUES (bidPrice, bidUserID, bidDate, askPrice, askUserID, askDate, matchDate, price, stockName, askID, bidID);
+				END $$
+			
+			CREATE PROCEDURE SELECT_FOR_UPDATE_STOCK_PRICE(IN stockName varchar(10))
+				BEGIN
+					select stock.price from stock where stock.stockName = stockName;
 				END $$
 			
 			CREATE PROCEDURE UPDATE_STOCK_PRICE(IN price int, IN stockName varchar(10))

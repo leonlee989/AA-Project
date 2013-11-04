@@ -2,7 +2,6 @@
 <Context clearReferencesStopThreads="true" antiJARLocking="true" path="/Prototype">
     <Resource name="jdbc/ExchangeDB" auth="Container" type="javax.sql.DataSource" factory="org.apache.tomcat.jdbc.pool.DataSourceFactory" 
                maxActive="50" maxIdle="40" maxWait="10" removeAbandoned="true" removeAbandonedTimeout="60" logAbandoned="true"
-               testOnBorrow="true" validationInterval="60000" validationQuery="SELECT 1"
                username="root" password="root" driverClassName="com.mysql.jdbc.Driver" classesToInitialize="com.mysql.jdbc.NonRegisteringDriver"
                url="jdbc:mysql://localhost:3306/exchangemel"/>
 </Context>
