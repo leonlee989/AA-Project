@@ -21,7 +21,6 @@ import thread.BackOfficeThread;
 import thread.HighestBidThread;
 import thread.InsertAskThread;
 import thread.InsertBidThread;
-import thread.InsertMatchedTransaction;
 import thread.InsertUserCredit;
 import thread.LowestAskThread;
 import thread.MatchedTransactionLogger;
@@ -45,7 +44,6 @@ public class ExchangeBean {
     // the remaining credit limit should not go below 0 under any circumstance!
     // --- Credit is now stored in database. ----
     //private Hashtable <String, Integer> creditRemaining = new Hashtable<String, Integer>();
-    private Connection connection = DbBean.getDbConnection();
 
     // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
     // this is a good chance to "clean up" everything to get ready for the next trading day
@@ -273,9 +271,11 @@ public class ExchangeBean {
             cs.setString(1, buyerUserId);
             rs = cs.executeQuery();
             if (rs.next()) {
-                return rs.getInt("credit_limit");
+                int limit = rs.getInt("credit_limit");
+                return limit;
             } else {
                 InsertUserCredit iuct = new InsertUserCredit(buyerUserId, DAILY_CREDIT_LIMIT_FOR_BUYERS);
+                executor.execute(iuct);
                 return DAILY_CREDIT_LIMIT_FOR_BUYERS;
             }
         } catch (SQLException e) {
@@ -362,7 +362,9 @@ public class ExchangeBean {
         if (!okToContinue) {
             return false;
         }
-
+        
+        insertBid(newBid);
+        
         //step 1: Check if there's an ask
         Ask lowestAsk = null;
         try {
@@ -378,7 +380,6 @@ public class ExchangeBean {
 
         if (lowestAsk == null) {
             //no current asks for this stock
-            insertBid(newBid);//DB
             return true;
         }
 
@@ -395,17 +396,7 @@ public class ExchangeBean {
             return false;
         }
 
-        boolean isNewHighest = false;
-
-        //step 3: If current bid is greater than the highest bid (or if no other bid) else not insert into db first
-        if (highestBid == null || newBid.getPrice() > highestBid.getPrice()) {
-            isNewHighest = true;
-            highestBid = newBid;//set the highest to the new bid
-        } else {
-            insertBid(newBid);//DB            
-        }
-
-        // step 4: check if there is a match.
+        // step 3: check if there is a match.
         // A match happens if the highest bid is bigger or equal to the lowest ask
         // If the highest bid is not new, then delete the bid from database
         if (highestBid.getPrice() >= lowestAsk.getPrice()) {
@@ -415,9 +406,7 @@ public class ExchangeBean {
             Savepoint sp = cn.setSavepoint();
             
             try{
-                if (!isNewHighest) {
-                    deleteBid(highestBid, cn);
-                }
+                deleteBid(highestBid,cn);
                 deleteAsk(lowestAsk,cn);//DB
                 // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
                 MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
@@ -435,8 +424,6 @@ public class ExchangeBean {
             }finally{
                 close(null,null,cn);
             }
-        } else {
-            insertBid(newBid);
         }
 
         return true; // this bid is acknowledged
@@ -445,7 +432,9 @@ public class ExchangeBean {
     // call this method immediatley when a new ask (selling order) comes in
     public void placeNewAskAndAttemptMatch(Ask newAsk) throws SQLException {
         String askStockName = newAsk.getStock();
-
+        
+        insertAsk(newAsk);
+        
         // step 1: identify the current/highest bid in unfulfilledBids of the same stock AND IF THERE'S EVEN A BID
         Bid highestBid = null;
         try {
@@ -459,8 +448,7 @@ public class ExchangeBean {
             return;
         }
 
-        if (highestBid == null) {//if no bid, then insert and F.O.
-            insertAsk(newAsk);//DB
+        if (highestBid == null) {//if no bid then F.O.
             return;
         }
 
@@ -477,16 +465,7 @@ public class ExchangeBean {
             return;
         }
 
-        //step 3: identify if new ask is the lowest ask (or the only ask); else then insert new ask since we're dealing with other asks
-        boolean isNewLowest = false;
-        if (lowestAsk == null || newAsk.getPrice() < lowestAsk.getPrice()) {
-            isNewLowest = true;
-            lowestAsk = newAsk;
-        } else {
-            insertAsk(newAsk);//DB
-        }
-
-        // step 4: check if there is a match.
+        // step 3: check if there is a match.
         // A match happens if the lowest ask is <= highest bid
         if (lowestAsk.getPrice() <= highestBid.getPrice()) {
             Connection cn = DbBean.getDbConnection();
@@ -495,9 +474,7 @@ public class ExchangeBean {
 
             try {
                 // a match is found! Start removing from runtime & db; if ask is not the new lowest then remove
-                if (!isNewLowest) {
-                    deleteAsk(lowestAsk,cn);//DB
-                }
+                deleteAsk(lowestAsk,cn);//DB
                 deleteBid(highestBid, cn);//DB
                 // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
                 MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
@@ -515,8 +492,6 @@ public class ExchangeBean {
             } finally {
                 close(null, null, cn);
             }
-        } else {
-            insertAsk(newAsk);
         }
     }
 

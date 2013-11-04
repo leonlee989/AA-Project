@@ -5,8 +5,6 @@
 package aa;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Level;
@@ -25,7 +23,7 @@ public class DbBean {
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";
     private static DataSource datasource;
-    static String dbURL = "jdbc:mysql://localhost:3306/exchange";
+    static String dbURL = "jdbc:mysql://localhost:3306/exchangemel";
     static String dbUser = "root";
     static String dbPassword = "root";
     //Read JDBC parameters from web.xml
