@@ -45,7 +45,7 @@ DBBean.prototype.estab_connection = function() {
 	}
 }
 
-DBBean.prototype.executeSql = function(stringSQL, results) {
+DBBean.prototype.executeSql = function(stringSQL, callback) {
 
 	if (poolCluster == undefined) {
 		this.estab_connection();
@@ -53,21 +53,23 @@ DBBean.prototype.executeSql = function(stringSQL, results) {
 	
 	poolCluster.getConnection(function(err, connection) {
 		if (connection != null) {
-			connection.query(stringSQL, function(err, rows) {
+			var options = {sql: stringSQL, nestTables: true};
+			
+			connection.query(options, function(err, results) {
 				console.log("Executing SQL statement...\n" + stringSQL);
 				
 				if (err) {
 					console.log(err);
 					console.log("Error in retrieval of information...");
-					results(undefined);
+					callback(undefined);
 				} else {
 					// Data Found
-					console.log("Success in retrieval of information...");
-					for (var i=0; i<rows.length; i++) {
-						console.log(rows[i]);
+					console.log("Success in retrieval of information... " + JSON.stringify(results));
+					for (var i=0; i<results.length; i++) {
+						console.log(results[i]);
 					}
 					
-					results(rows);
+					callback(results);
 				}
 				
 				connection.release();
@@ -82,7 +84,7 @@ DBBean.prototype.executeSql = function(stringSQL, results) {
 		results('REMOVED NODE : ' + nodeId);
 	});
 }
-
+/*
 DBBean.prototype.executeUpdate = function(strSQL) {
 	if (poolCluster == undefined) {
 		this.estab_connection();
@@ -111,7 +113,7 @@ DBBean.prototype.executeUpdate = function(strSQL) {
 	  console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
 	});
 }
-
+*/
 DBBean.prototype.close = function() {
 	poolCluster.end();
 }

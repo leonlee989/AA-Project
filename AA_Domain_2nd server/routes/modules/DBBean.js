@@ -8,7 +8,7 @@ function DBBean() {
 
 DBBean.prototype.connect = function() {
 
-	var server = new Server("192.168.0.10", 27017, {auto_reconnect: true});
+	var server = new Server("192.168.0.3", 27017, {auto_reconnect: true});
 	this.database = new Db("exchange", server);
 	
 	this.database.open(function(err, db) {
@@ -25,8 +25,8 @@ DBBean.prototype.executeSql = function(tableName, callback) {
 	
 	collection.find().toArray(function(err, items) {
 		if (!err) {
-			console.log("Retrieval of information from " + tableName + " success...");
-			console.log("Query found as followed:" + JSON.stringify(items));
+			//console.log("Retrieval of information from " + tableName + " success...");
+			//console.log("Query found as followed:" + JSON.stringify(items));
 			callback(items);
 		} else {
 			console.log("Retrieval of information from " + tableName + " failed...");
@@ -50,10 +50,10 @@ DBBean.prototype.selectOneSql = function(tableName, query, callback) {
 
 DBBean.prototype.updateSql = function(tableName, query, setValue, callback) {
 	var collection = this.database.collection(tableName);
-	console.log("Executing updating commanding for " + tableName + " with " + JSON.stringify(query) + " setting " + JSON.stringify(setValue));
+	//console.log("Executing updating commanding for " + tableName + " with " + JSON.stringify(query) + " setting " + JSON.stringify(setValue));
 	collection.update(query, {$set:setValue}, {w:1}, function(err, results) {
 		if (!err) {
-			console.log("Update Success...");
+			//console.log("Update Success...");
 			callback(results);
 		} else {
 			console.log("Update Failed...");
@@ -61,14 +61,13 @@ DBBean.prototype.updateSql = function(tableName, query, setValue, callback) {
 	});
 }
 
-DBBean.prototype.insertSql = function(tableName, objJson, callback) {
+DBBean.prototype.insertSql = function(tableName, objJson) {
 	var collection = this.database.collection(tableName);
 	
-	console.log("Executing inserting commanding for " + tableName + " inserting values of: \n " + JSON.stringify(objJson));
+	//console.log("Executing inserting commanding for " + tableName + " inserting values of: \n " + JSON.stringify(objJson));
 	collection.insert(objJson, {w:1}, function(err, results) {
 		if (!err) {
-			console.log("Insert Success...");
-			callback(results);
+			//console.log("Insert Success...");
 		} else {
 			console.log("Insert Failed...");
 		}
@@ -78,7 +77,7 @@ DBBean.prototype.insertSql = function(tableName, objJson, callback) {
 DBBean.prototype.removeAllSql = function(tableName, callback) {
 	var collection = this.database.collection(tableName); 
 	
-	console.log("Remove all rows from " + tableName);
+	//console.log("Remove all rows from " + tableName);
 	collection.remove();
 }
 
@@ -88,7 +87,7 @@ DBBean.prototype.removeOneSql = function(tableName, remove_key, remove_value, ca
 	console.log("Remove " + remove_key + ":" + remove_value + " from " + tableName);
 	collection.remove({remove_key:remove_value}, {w:1}, function(err, results) {
 		if (!err) {
-			console.log("Remove Success...");
+			//console.log("Remove Success...");
 			callback(results);
 		} else {
 			console.log("Remove Failed...");
@@ -99,10 +98,10 @@ DBBean.prototype.removeOneSql = function(tableName, remove_key, remove_value, ca
 DBBean.prototype.removeOneQuerySql = function(tableName, query, callback) {
 	var collection = this.database.collection(tableName);
 	
-	console.log("Remove " + JSON.stringify(query) + " from " + tableName);
+	//console.log("Remove " + JSON.stringify(query) + " from " + tableName);
 	collection.remove(query, {w:1}, function(err, results) {
 		if (!err) {
-			console.log("Remove Success...");
+			//console.log("Remove Success...");
 			callback(results);
 		} else {
 			console.log("Remove Failed...");
@@ -117,7 +116,7 @@ DBBean.prototype.countSql = function(tableName, query, callback) {
 	
 	collection.count(query, function(err, countval) {
 		if (!err) {
-			console.log("Count Success...");
+			//console.log("Count Success...");
 			callback(countval);
 		} else {
 			console.log("Count Failed...");
