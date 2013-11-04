@@ -82,26 +82,18 @@ exports.processBuy = function(req, res) {
 	var newBid = new bidModule.Bid(stock, tempBidPrice, userId, new Date());
 	exchangeBean.placeNewBidAndAttemptMatch(newBid, function(bidIsAccepted) {
 		if (bidIsAccepted) {
-			res.redirect("/buySuccess");
+			res.render('buySuccess.ejs', { 
+				userId: req.session.userId, 
+				stock: req.session.stock,
+				bidPrice: req.session.tempBidPrice
+			});
 		} else {
-			res.redirect("/buyFail");
+			res.render('buyFail.ejs', { 
+				userId: req.session.userId, 
+				stock: req.session.stock,
+				bidPrice: req.session.tempBidPrice
+			});
 		}
-	});
-}
-
-exports.buySuccess = function(req, res) {
-	res.render('buySuccess.ejs', { 
-		userId: req.session.userId, 
-		stock: req.session.stock,
-		bidPrice: req.session.tempBidPrice
-	});
-}
-
-exports.buyFail = function(req, res) {
-	res.render('buyFail.ejs', { 
-		userId: req.session.userId, 
-		stock: req.session.stock,
-		bidPrice: req.session.tempBidPrice
 	});
 }
 
@@ -121,10 +113,6 @@ exports.processSell = function(req, res) {
 	var newAsk = new askModule.Ask(stock, tempAskPrice, userId, new Date());
 	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
-	res.redirect("/sellSuccess");
-}
-
-exports.sellSuccess = function(req, res) {
 	res.render('sellSuccess.ejs', { 
 		userId: req.session.userId, 
 		stock: req.session.stock,
