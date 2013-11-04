@@ -25,6 +25,8 @@ public class InsertAskThread implements Runnable {
     public InsertAskThread (Ask ask){
         this.ask = ask;
     }
+    
+    
 
     public void run() {
         Connection cn = null;
