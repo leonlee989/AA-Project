@@ -1,5 +1,6 @@
 package aa;
 
+import com.mysql.jdbc.exceptions.MySQLTransactionRollbackException;
 import context.TransactionFailureException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -29,9 +30,10 @@ import thread.UpdateCreditThread;
 
 public class ExchangeBean {
 
+    private final int RESTART_TRANS = 1;
     private static final int NTHREADS = Runtime.getRuntime().availableProcessors();
     //5 core threads kept alive, 100 max threads,
-    private static final ExecutorService executor = new ThreadPoolExecutor(0, 50, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+    private static final ExecutorService executor = new ThreadPoolExecutor(0, 100, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
     // location of log files - change if necessary
     private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
     private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
@@ -159,7 +161,7 @@ public class ExchangeBean {
             cn = DbBean.getDbConnection();
             cs = cn.prepareCall("{call INSERT_REJECTED_LOG(?)}");
             cs.setString(1, logStatement);
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException e) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
         } finally {
@@ -174,7 +176,7 @@ public class ExchangeBean {
             cn = DbBean.getDbConnection();
             cs = cn.prepareCall("{call INSERT_MATCHED_LOG(?)}");
             cs.setString(1, logStatement);
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException e) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, e);
         } finally {
@@ -234,6 +236,33 @@ public class ExchangeBean {
         HighestBidThread hbt = new HighestBidThread(stock);
         return executor.submit(hbt);
     }
+    
+    private Bid getHighestBid(String stock,Connection cn){
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        Bid b = null;
+        try {
+          cs = cn.prepareCall("{call GET_HIGHEST_BID(?)}");
+          cs.setString(1, stock);
+          rs = cs.executeQuery();
+          if (rs == null){
+            return null;
+          }
+          while (rs.next()){
+              int bidID = rs.getInt("id");
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String id = rs.getString("userID");
+              Date bidDate = rs.getTimestamp("bidDate");
+              b = new Bid(stockName,price,id,bidDate);
+          }
+      }catch(SQLException ex){
+          Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+      }finally{
+        close(rs,cs,null);
+      }
+        return b;
+    }
 
     // returns the lowest ask for a particular stock
     // returns -1 if there is no ask at all
@@ -258,6 +287,34 @@ public class ExchangeBean {
     private Future<Ask> getLowestAsk(String stock) {
         LowestAskThread lat = new LowestAskThread(stock);
         return executor.submit(lat);
+    }
+    
+    private Ask getLowestAsk(String stock, Connection cn){
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        Ask ask = null;
+        try {
+            cn = DbBean.getDbConnection();
+            cs = cn.prepareCall("{call GET_LOWEST_ASK(?)}");
+            cs.setString(1, stock);
+            rs = cs.executeQuery();
+            if (rs == null){
+              return null;
+            }
+            while (rs.next()){
+              int askID = rs.getInt("id");
+              String stockName = rs.getString("stockName");
+              int price = rs.getInt("price");
+              String id = rs.getString("userID");
+              Date askDate = rs.getTimestamp("askDate");
+              ask = new Ask(askID,stockName,price,id,askDate);
+            }
+        }catch(SQLException ex){
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+        }finally{
+            close(rs,cs,null);
+        }
+        return ask;
     }
 
     // get credit remaining for a particular buyer
@@ -362,136 +419,173 @@ public class ExchangeBean {
         if (!okToContinue) {
             return false;
         }
-        
+
         insertBid(newBid);
-        
-        //step 1: Check if there's an ask
-        Ask lowestAsk = null;
+
+        //step 1: Check if there's an ask and bid
+        Future<Ask> futureAsk = getLowestAsk(newBidStockName);
+        Future<Bid> futureBid = getHighestBid(newBidStockName);
+
+        //step 2: Get the current values off the Futures
+        Ask lowestAsk=null;
         try {
-            Future<Ask> futureAsk = getLowestAsk(newBidStockName);
-            lowestAsk = futureAsk.get();//DB
+            lowestAsk = futureAsk.get(); //DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return false;
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return false;
         }
-
+                
         if (lowestAsk == null) {
-            //no current asks for this stock
             return true;
         }
-
-        //step 2: Get the current highest bid
-        Bid highestBid = null;
+        
+        Bid highestBid=null;
         try {
-            Future<Bid> futureBid = getHighestBid(newBidStockName);
-            highestBid = futureBid.get();//DB
+            highestBid = futureBid.get(); //DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return false;
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return false;
         }
-
+        
+        if (highestBid==null){
+            highestBid = newBid;
+        }
+        
         // step 3: check if there is a match.
         // A match happens if the highest bid is bigger or equal to the lowest ask
         // If the highest bid is not new, then delete the bid from database
-        if (highestBid.getPrice() >= lowestAsk.getPrice()) {
-            // a match is found!
-            Connection cn = DbBean.getDbConnection();
-            cn.setAutoCommit(false);
-            Savepoint sp = cn.setSavepoint();
-            
-            try{
-                deleteBid(highestBid,cn);
-                deleteAsk(lowestAsk,cn);//DB
-                // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
-                MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-                executeInsertMatchedTransaction(match,cn);//DB
+        // cater to restarting transactions against deadlocks
 
-                // to be included here: inform Back Office Server of match
-                // to be done in v1.0
+        for (int i = 0; i < RESTART_TRANS; i++) {
+            if (highestBid.getPrice() >= lowestAsk.getPrice()) {
+                // a match is found!
+                Connection cn = DbBean.getDbConnection();
+                cn.setAutoCommit(false);
+                Savepoint sp = cn.setSavepoint();
 
-                updateLatestPrice(match,cn);//DB
-                cn.commit();
-                cn.setAutoCommit(true);
-                logMatchedTransactions();//DB
-            }catch(TransactionFailureException e){
-                cn.rollback(sp);
-            }finally{
-                close(null,null,cn);
+
+                try {
+                    // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
+                    MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
+                    executeInsertMatchedTransaction(match, cn);//DB
+                    updateLatestPrice(match, cn);//DB
+                    
+                    deleteAsk(lowestAsk,cn);
+                    deleteBid(highestBid,cn);
+                    // to be included here: inform Back Office Server of match
+                    // to be done in v1.0
+                    System.out.println(match.toString());
+                    cn.commit();
+                    cn.setAutoCommit(true);
+                    //logMatchedTransactions();//DB
+                } catch (TransactionFailureException e) {
+                    try {
+                        if (cn != null) {
+                            cn.rollback(sp);
+                            cn.releaseSavepoint(sp);
+                            cn.setAutoCommit(true);
+                            break;
+                        }
+                    } catch (MySQLTransactionRollbackException ex) {
+                        System.out.println("Exchange bean ln 436 > " + ex);
+                        continue;
+                    }
+                } finally {
+                    close(null, null, cn);
+                }
             }
         }
-
         return true; // this bid is acknowledged
     }
 
     // call this method immediatley when a new ask (selling order) comes in
     public void placeNewAskAndAttemptMatch(Ask newAsk) throws SQLException {
         String askStockName = newAsk.getStock();
-        
+
         insertAsk(newAsk);
         
-        // step 1: identify the current/highest bid in unfulfilledBids of the same stock AND IF THERE'S EVEN A BID
-        Bid highestBid = null;
+        //step 1: Check if there's an ask and bid
+        Future<Ask> futureAsk = getLowestAsk(askStockName);
+        Future<Bid> futureBid = getHighestBid(askStockName);
+
+        //step 2: Get the current values off the Futures
+        Bid highestBid=null;
         try {
-            Future<Bid> futureBid = getHighestBid(askStockName);
-            highestBid = futureBid.get();//DB
+            highestBid = futureBid.get(); //DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return;
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return;
         }
-
+        
+        
         if (highestBid == null) {//if no bid then F.O.
             return;
         }
-
-        // step 2: identify the current/lowest ask in unfulfilledAsks of the same stock
-        Ask lowestAsk = null;
+        
+        Ask lowestAsk=null;
         try {
-            Future<Ask> futureAsk = getLowestAsk(askStockName);
-            lowestAsk = futureAsk.get();//DB
+            lowestAsk = futureAsk.get(); //DB
         } catch (InterruptedException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return;
         } catch (ExecutionException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
-            return;
         }
-
+        
+        if (lowestAsk==null){
+            lowestAsk = newAsk;
+        }
+        
         // step 3: check if there is a match.
         // A match happens if the lowest ask is <= highest bid
-        if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-            Connection cn = DbBean.getDbConnection();
-            cn.setAutoCommit(false);
-            Savepoint sp = cn.setSavepoint();
+        // Loop 3 times to restart transaction in case of rollback exception
+        for (int i = 0; i < RESTART_TRANS; i++) {
 
-            try {
-                // a match is found! Start removing from runtime & db; if ask is not the new lowest then remove
-                deleteAsk(lowestAsk,cn);//DB
-                deleteBid(highestBid, cn);//DB
-                // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-                MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-                executeInsertMatchedTransaction(match,cn);//DB
+            if (lowestAsk.getPrice() <= highestBid.getPrice()) {
+                Connection cn = DbBean.getDbConnection();
+                cn.setAutoCommit(false);
+                Savepoint sp = cn.setSavepoint();
 
-                // to be included here: inform Back Office Server of match
-                // to be done in v1.0
+                try {
+                    // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
+                    MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
+                    executeInsertMatchedTransaction(match, cn);//DB
+                    updateLatestPrice(match, cn);//DB
+                    
+                    // a match is found! Start removing from runtime & db; if ask is not the new lowest then remove
+                    deleteAsk(lowestAsk,cn);
+                    deleteBid(highestBid,cn);
+                    // to be included here: inform Back Office Server of match
+                    // to be done in v1.0
+                    System.out.println(match.toString());
 
-                updateLatestPrice(match,cn);//DB
-                cn.commit();
-                cn.setAutoCommit(true);
-                logMatchedTransactions();//DB
-            } catch (TransactionFailureException e) {
-                cn.rollback(sp);
-            } finally {
-                close(null, null, cn);
+                    cn.commit();
+                    cn.setAutoCommit(true);
+                    //logMatchedTransactions();//DB
+                } catch (TransactionFailureException e) {
+                    try {
+                        try{
+                            if (cn != null) {
+                                cn.rollback(sp);
+                                cn.releaseSavepoint(sp);
+                                cn.setAutoCommit(true);
+                                break;
+                            }
+                        }catch (MySQLTransactionRollbackException ex) {
+                            System.out.println("Exchange bean ln 518 > " + ex);
+                            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, "Rollback exception" + ex);
+                            continue;
+                        }
+                    } catch (SQLException ex) {
+                        Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, "Rollback exception" + ex);
+                    }
+                } finally {
+                    close(null, null, cn);
+                }
             }
+
         }
     }
 
@@ -535,21 +629,21 @@ public class ExchangeBean {
             cs = cn.prepareCall("{call UPDATE_STOCK_PRICE(?,?)}");
             cs.setInt(1, price);
             cs.setString(2, stock);
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             close(null, cs, cn);
         }
     }
-    
+
     private void updateLatestPrice(String stock, int price, Connection cn) throws TransactionFailureException {
         CallableStatement cs = null;
         try {
             cs = cn.prepareCall("{call UPDATE_STOCK_PRICE(?,?)}");
             cs.setInt(1, price);
             cs.setString(2, stock);
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
             throw new TransactionFailureException("Transaction failed at updating the latest price");
@@ -560,10 +654,10 @@ public class ExchangeBean {
 
     // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
     // based on the MatchedTransaction object passed in
-    private void updateLatestPrice(MatchedTransaction m,Connection cn) throws TransactionFailureException {
+    private void updateLatestPrice(MatchedTransaction m, Connection cn) throws TransactionFailureException {
         String stock = m.getStock();
         int price = m.getPrice();
-        updateLatestPrice(stock, price,cn);
+        updateLatestPrice(stock, price, cn);
     }
 
     // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
@@ -615,7 +709,7 @@ public class ExchangeBean {
         }
     }
 
-    private void deleteAsk(Ask ask,Connection cn) throws TransactionFailureException{
+    private void deleteAsk(Ask ask, Connection cn) throws TransactionFailureException {
         CallableStatement cs = null;
         try {
             cs = cn.prepareCall("{call DELETE_ASK(?,?,?,?)}");
@@ -623,12 +717,12 @@ public class ExchangeBean {
             cs.setInt(2, ask.getPrice());
             cs.setString(3, ask.getUserId());
             cs.setTimestamp(4, new Timestamp(ask.getDate().getTime()));
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
             throw new TransactionFailureException("Transaction failed at Delete Ask");
         } finally {
-            close(null,cs,null);
+            close(null, cs, null);
         }
     }
 
@@ -640,7 +734,7 @@ public class ExchangeBean {
             cs.setInt(2, bid.getPrice());
             cs.setString(3, bid.getUserId());
             cs.setTimestamp(4, new Timestamp(bid.getDate().getTime()));
-            cs.executeQuery();
+            cs.executeUpdate();
         } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
             throw new TransactionFailureException("Transaction failed at DeleteBid");
@@ -648,7 +742,30 @@ public class ExchangeBean {
             close(null, cs, null);//Connection is shared with subsequent calls, dun close!!!
         }
     }
-
+    
+    private void deleteAskNBid(Bid bid, Ask ask, Connection cn) throws TransactionFailureException {
+        CallableStatement cs = null;
+        try {
+            cs = cn.prepareCall("{call DELETE_BID_N_ASK(?,?,?,?,?,?,?,?)}");
+            cs.setString(1, bid.getStock());
+            cs.setInt(2, bid.getPrice());
+            cs.setString(3, bid.getUserId());
+            cs.setTimestamp(4, new Timestamp(bid.getDate().getTime()));
+            
+            cs.setString(5, ask.getStock());
+            cs.setInt(6, ask.getPrice());
+            cs.setString(7, ask.getUserId());
+            cs.setTimestamp(8, new Timestamp(ask.getDate().getTime()));
+            
+            cs.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            throw new TransactionFailureException("Transaction failed at DeleteAskNBid");
+        } finally {
+            close(null, cs, null);//Connection is shared with subsequent calls, dun close!!!
+        }
+    }
+    
     private void executeInsertPrice(String stock, int price) {
         Connection cn = null;
         CallableStatement cs = null;
@@ -657,20 +774,52 @@ public class ExchangeBean {
             cs = cn.prepareCall("{call INSERT_PRICE(?,?)}");
             cs.setInt(1, price);
             cs.setString(2, stock);
+            cs.executeUpdate();
         } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             close(null, cs, cn);
         }
     }
-
-    private void executeInsertMatchedTransaction(MatchedTransaction m,Connection cn) throws TransactionFailureException{
+    
+    private void executeInsertMatchedTransaction(MatchedTransaction m) {
         Ask ask = m.getAsk();
         Bid bid = m.getBid();
         
+        Connection cn = null;
         CallableStatement cs = null;
-        
-        try{
+        for (int i = 0; i<RESTART_TRANS; i++){
+            try {
+                cn = DbBean.getDbConnection();
+                cs = cn.prepareCall("{call INSERT_MATCHED_TRANSACTION(?,?,?,?,?,?,?,?,?,?,?)}");
+                cs.setInt(1, bid.getPrice());
+                cs.setString(2, bid.getUserId());
+                cs.setTimestamp(3, new Timestamp(bid.getDate().getTime()));
+                cs.setInt(4, ask.getPrice());
+                cs.setString(5, ask.getUserId());
+                cs.setTimestamp(6, new Timestamp(ask.getDate().getTime()));
+                cs.setTimestamp(7, new Timestamp(m.getDate().getTime()));
+                cs.setInt(8, m.getPrice());
+                cs.setString(9, m.getStock());
+                cs.setInt(10, ask.getID());
+                cs.setInt(11, bid.getID());
+                cs.executeUpdate();
+                break;
+            } catch (SQLException ex) {
+                Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                close(null, cs, null);
+            }
+        }
+    }
+    
+    private void executeInsertMatchedTransaction(MatchedTransaction m, Connection cn) throws TransactionFailureException {
+        Ask ask = m.getAsk();
+        Bid bid = m.getBid();
+
+        CallableStatement cs = null;
+
+        try {
             cs = cn.prepareCall("{call INSERT_MATCHED_TRANSACTION(?,?,?,?,?,?,?,?,?,?,?)}");
             cs.setInt(1, bid.getPrice());
             cs.setString(2, bid.getUserId());
@@ -678,20 +827,20 @@ public class ExchangeBean {
             cs.setInt(4, ask.getPrice());
             cs.setString(5, ask.getUserId());
             cs.setTimestamp(6, new Timestamp(ask.getDate().getTime()));
-            cs.setTimestamp(7,new Timestamp(m.getDate().getTime()));
+            cs.setTimestamp(7, new Timestamp(m.getDate().getTime()));
             cs.setInt(8, m.getPrice());
             cs.setString(9, m.getStock());
             cs.setInt(10, ask.getID());
             cs.setInt(11, bid.getID());
-            cs.executeQuery();
-        }catch(SQLException ex){
+            cs.executeUpdate();
+        } catch (SQLException ex) {
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);
             throw new TransactionFailureException("Transaction failed at Inserting A Matched Transaction");
-        }finally{
-            close(null,cs,null);
+        } finally {
+            close(null, cs, null);
         }
     }
-
+/*
     private int getLastID() {
         ResultSet rs = null;
         CallableStatement cs = null;
@@ -709,7 +858,7 @@ public class ExchangeBean {
         }
         return id;
     }
-
+*/
     private void close(ResultSet rs, CallableStatement cs, Connection cn) {
         if (rs != null) {
             try {

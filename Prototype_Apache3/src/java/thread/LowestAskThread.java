@@ -40,11 +40,12 @@ public class LowestAskThread implements Callable<Ask> {
               return null;
             }
             while (rs.next()){
+              int askID = rs.getInt("id");
               String stockName = rs.getString("stockName");
               int price = rs.getInt("price");
               String id = rs.getString("userID");
               Date askDate = rs.getTimestamp("askDate");
-              return new Ask(stockName,price,id,askDate);
+              return new Ask(askID,stockName,price,id,askDate);
             }
         }catch(SQLException ex){
             Logger.getLogger(ExchangeBean.class.getName()).log(Level.SEVERE, null, ex);

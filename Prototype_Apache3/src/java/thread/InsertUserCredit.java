@@ -5,6 +5,7 @@
 package thread;
 
 import aa.DbBean;
+import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -33,6 +34,8 @@ public class InsertUserCredit implements Runnable {
             cs.setString(1, userID);
             cs.setInt(2, creditLimit);
             cs.executeQuery();
+        }  catch (MySQLIntegrityConstraintViolationException ex) {
+            System.out.println("InsertUserCredit > existing attempt to insert > screw it" + ex);
         } catch (SQLException ex) {
             Logger.getLogger(InsertUserCredit.class.getName()).log(Level.SEVERE, null, ex);
         } finally {

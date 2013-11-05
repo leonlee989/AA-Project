@@ -40,6 +40,7 @@ public class HighestBidThread implements Callable<Bid> {
             return null;
           }
           while (rs.next()){
+              int bidID = rs.getInt("id");
               String stockName = rs.getString("stockName");
               int price = rs.getInt("price");
               String id = rs.getString("userID");

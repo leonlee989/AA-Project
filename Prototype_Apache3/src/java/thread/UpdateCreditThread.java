@@ -32,23 +32,14 @@ public class UpdateCreditThread implements Runnable {
         try {
             cn = DbBean.getDbConnection();
             cn.setAutoCommit(false);
-            cs = cn.prepareCall("{call FOR_UPDATE_CREDIT_LIMIT(?)}");
-            cs.setString(1,username);
-            rs = cs.executeQuery();
-            
-            if (rs.next()){
-                System.out.println(rs.getInt("credit_limit"));
-            }
             
             cs = cn.prepareCall("{call UPDATE_CREDIT_LIMIT(?,?)}");
             cs.setInt(1, credit);
             cs.setString(2,username);
             cs.executeUpdate();
- 
-            System.out.println("query to be committed" + cn.getAutoCommit());
+
             cn.commit();
             cn.setAutoCommit(true);
-            System.out.println("query to be committed" + cn.getAutoCommit());
         } catch (SQLException ex) {
             Logger.getLogger(UpdateCreditThread.class.getName()).log(Level.SEVERE, null, ex);
         }finally{

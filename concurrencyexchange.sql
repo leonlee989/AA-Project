@@ -185,6 +185,7 @@ DELIMITER $$
 			
 			CREATE PROCEDURE UPDATE_CREDIT_LIMIT(IN credit_limit int, IN userid varchar(20))
 				BEGIN
+					select credit.credit_limit from credit where credit.userid=userid for update;
 					update credit set credit.credit_limit= credit_limit where credit.userid=userid;
 				END $$
 				
@@ -196,6 +197,12 @@ DELIMITER $$
 			CREATE PROCEDURE DELETE_BACKOFFICELOG(IN logStatement varchar(500))
 				BEGIN
 					delete from backOfficeLog where backOfficeLog.logstatement  = logStatement ;
+				END $$
+			
+			CREATE PROCEDURE DELETE_BID_N_ASK(IN bidStockName varchar(10), IN bidPrice int, IN bidUserID varchar(50), IN bidDate TimeStamp,IN askStockName varchar(10), IN askPrice int, IN askUserID varchar(50), IN askDate TimeStamp)
+				BEGIN
+					delete from bid where bid.stockName = bidStockName and bid.price = bidPrice and bid.userID = bidUserID and bid.bidDate = bidDate;
+					delete from ask where ask.stockName = askStockName and ask.price = askPrice and ask.userID = askUserID and ask.askDate = askDate;
 				END $$
 			
 			CREATE PROCEDURE DELETE_BID(IN stockName varchar(10), IN price int, IN userID varchar(50), IN bidDate TimeStamp)
@@ -253,15 +260,13 @@ DELIMITER $$
 				BEGIN
 					insert into matchedtransactiondb (matchedtransactiondb.bidPrice, matchedtransactiondb.bidUserID, matchedtransactiondb.bidDate, matchedtransactiondb.askPrice, matchedtransactiondb.askUserID, matchedtransactiondb.askDate, matchedtransactiondb.matchDate, matchedtransactiondb.price, matchedtransactiondb.stockName, matchedtransactiondb.askID, matchedtransactiondb.bidID )  VALUES (bidPrice, bidUserID, bidDate, askPrice, askUserID, askDate, matchDate, price, stockName, askID, bidID);
 				END $$
-			
-			CREATE PROCEDURE SELECT_FOR_UPDATE_STOCK_PRICE(IN stockName varchar(10))
-				BEGIN
-					select stock.price from stock where stock.stockName = stockName;
-				END $$
-			
+
 			CREATE PROCEDURE UPDATE_STOCK_PRICE(IN price int, IN stockName varchar(10))
 				BEGIN
+					select stock.price from stock where stock.stockName = stockName for update;
 					UPDATE stock SET stock.price = price WHERE stock.stockName = stockName;
 				END $$
 				
 DELIMITER ;
+
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;

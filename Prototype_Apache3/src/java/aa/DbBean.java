@@ -5,7 +5,9 @@
 package aa;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,13 +60,22 @@ public class DbBean {
         Connection cn = null;
         Statement stmt = null;
         int rs = 0;
-
+        //Savepoint sp = null;
         try {
             cn = datasource.getConnection();
+            //cn.setAutoCommit(false);
+            //sp = cn.setSavepoint();
             stmt = cn.createStatement();
             rs = stmt.executeUpdate(sql);
+            //cn.commit();
+            //cn.setAutoCommit(true);
         } catch (SQLException e) {
-            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, e);
+            Logger.getLogger(DbBean.class.getName()).log(Level.SEVERE, null, e + "Error at the DbBean execute update");
+            //if (cn!=null){
+            //    cn.rollback();
+            //    cn.releaseSavepoint(sp);
+            //    cn.setAutoCommit(true);
+            //}
         } finally {
             if (stmt != null) {
                 try {
