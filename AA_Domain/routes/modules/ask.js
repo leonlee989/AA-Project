@@ -1,4 +1,5 @@
-function Ask(stock, price, userId, date) {
+function Ask(idvalue, stock, price, userId, date) {
+	this.idvalue = idvalue;
 	this.stock = stock;
 	this.price = price;
 	this.userId = userId;
@@ -19,6 +20,14 @@ Ask.prototype.getUserId = function() {
 
 Ask.prototype.getDate = function() {
 	return this.date;
+}
+
+Ask.prototype.getId = function() {
+	return this.idvalue;
+}
+
+Ask.prototype.setId = function(idvalue) {
+	this.idvalue = idvalue;
 }
 
 Ask.prototype.getDateString = function() {

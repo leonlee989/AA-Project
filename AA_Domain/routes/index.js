@@ -74,12 +74,13 @@ exports.buy = function(req, res) {
 };
 
 exports.processBuy = function(req, res) {
+	req.setMaxListeners(0);
 	var userId = req.session.userId;
 	
 	var stock = req.session.stock = req.param('stock');
 	var tempBidPrice = req.session.tempBidPrice = req.param('bidprice');
 	
-	var newBid = new bidModule.Bid(stock, tempBidPrice, userId, new Date());
+	var newBid = new bidModule.Bid(undefined, stock, tempBidPrice, userId, new Date());
 	exchangeBean.placeNewBidAndAttemptMatch(newBid, function(bidIsAccepted) {
 		if (bidIsAccepted) {
 			res.render('buySuccess.ejs', { 
@@ -105,12 +106,13 @@ exports.sell = function(req, res) {
 };
 
 exports.processSell = function(req, res) {
+	req.setMaxListeners(0);
 	var userId = req.session.userId;
 	
 	var stock = req.session.stock = req.param('stock');
 	var tempAskPrice = req.session.tempAskPrice = req.param('askprice');
 	
-	var newAsk = new askModule.Ask(stock, tempAskPrice, userId, new Date());
+	var newAsk = new askModule.Ask(undefined, stock, tempAskPrice, userId, new Date());
 	exchangeBean.placeNewAskAndAttemptMatch(newAsk);
 	
 	res.render('sellSuccess.ejs', { 
@@ -128,26 +130,33 @@ exports.logout = function(req,res) {
 };
 
 exports.current = function(req, res) {
-	exchangeBean.getHighestBidPrice("smu", function(smuhighestprice) {
-		exchangeBean.getHighestBidPrice("nus", function(nushigestprice) {
-			exchangeBean.getHighestBidPrice("ntu", function(ntuhighestprice) {
-				
-				exchangeBean.getLowestAskPrice("smu", function(smulowestprice) {
-					exchangeBean.getLowestAskPrice("nus", function(nuslowestprice) {
-						exchangeBean.getLowestAskPrice("ntu", function(ntulowestprice) {
-						
-							res.render('current.ejs', { 
-								smuLatestPrice: exchangeBean.getLatestPrice("smu"),
-								smuHighestBidPrice: smuhighestprice,
-								smuLowestAskPrice: smulowestprice,
-								
-								nusLatestPrice: exchangeBean.getLatestPrice("nus"),
-								nusHighestBidPrice: nushigestprice,
-								nusLowestAskPrice: nuslowestprice,
-								
-								ntuLatestPrice: exchangeBean.getLatestPrice("ntu"),
-								ntuHighestBidPrice: ntuhighestprice,
-								ntuLowestAskPrice: ntulowestprice
+	exchangeBean.getLatestPrice("smu", function(smuLatestPrice) {
+		exchangeBean.getLatestPrice("nus", function(nusLatestPrice) {
+			exchangeBean.getLatestPrice("ntu", function(ntuLatestPrice) {
+	
+				exchangeBean.getHighestBidPrice("smu", function(smuhighestprice) {
+					exchangeBean.getHighestBidPrice("nus", function(nushigestprice) {
+						exchangeBean.getHighestBidPrice("ntu", function(ntuhighestprice) {
+							
+							exchangeBean.getLowestAskPrice("smu", function(smulowestprice) {
+								exchangeBean.getLowestAskPrice("nus", function(nuslowestprice) {
+									exchangeBean.getLowestAskPrice("ntu", function(ntulowestprice) {
+									
+										res.render('current.ejs', { 
+											smuLatestPrice: smuLatestPrice,
+											smuHighestBidPrice: smuhighestprice,
+											smuLowestAskPrice: smulowestprice,
+											
+											nusLatestPrice: nusLatestPrice,
+											nusHighestBidPrice: nushigestprice,
+											nusLowestAskPrice: nuslowestprice,
+											
+											ntuLatestPrice: ntuLatestPrice,
+											ntuHighestBidPrice: ntuhighestprice,
+											ntuLowestAskPrice: ntulowestprice
+										});
+									});
+								});
 							});
 						});
 					});
@@ -200,4 +209,4 @@ exports.endTradingDay = function(req, res) {
 setInterval(function() {
 	console.log("Match transaction records being loaded in database");
 	exchangeBean.sendToBackOffice("");
-}, 5000);
+}, 50000);

@@ -3,9 +3,9 @@ var mysql = require("mysql");
 // Connection configuration
 var conn_conf = {
 	host : 'localhost',
-	port : 3306,
+	port : 7000,
 	user : 'root',
-	password : 'root',
+	password : '',
 	database : 'exchange'
 }
 
@@ -35,7 +35,7 @@ DBBean.prototype.executeSql = function(stringSQL, results) {
 	}
 	
 	connection.query(stringSQL, function(err, rows) {
-		console.log("Executing SQL statement...\n" + stringSQL);
+		//console.log("Executing SQL statement...\n" + stringSQL);
 		
 		if (err) {
 			console.log(err);
@@ -43,10 +43,10 @@ DBBean.prototype.executeSql = function(stringSQL, results) {
 			results(undefined);
 		} else {
 			// Data Found
-			console.log("Success in retrieval of information...");
-			for (var i=0; i<rows.length; i++) {
-				console.log(rows[i]);
-			}
+			//console.log("Success in retrieval of information...");
+			//for (var i=0; i<rows.length; i++) {
+				//console.log(rows[i]);
+			//}
 			
 			results(rows);
 		}
@@ -59,14 +59,14 @@ DBBean.prototype.executeUpdate = function(strSQL) {
 	}
 	
 	connection.query(strSQL, function(err, results) {
-		console.log("Executing SQL statement...\n" + strSQL);
+		//console.log("Executing SQL statement...\n" + strSQL);
 		
 		if (err) {
 			console.log(err);
 			console.log("Error in executing sql...");
 			//throw new Error("Error in executing sql...");
 		} else {
-			console.log("Success in executing sql...");
+			//console.log("Success in executing sql...");
 			//callback(results);
 		}
 	});

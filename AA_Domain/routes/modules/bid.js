@@ -1,4 +1,5 @@
-function Bid (stock, price, userId, date) {
+function Bid (idvalue, stock, price, userId, date) {
+	this.idvalue = idvalue;
 	this.stock = stock;
 	this.price = price;	
 	this.userId = userId;
@@ -20,6 +21,14 @@ Bid.prototype.getUserId = function() {
 Bid.prototype.getDate = function() {
 	return this.date;
 	//return this.date.getMonth() + 1 + "-" + this.date.getDate() + "-" + this.date.getFullYear();
+}
+
+Bid.prototype.getId = function() {
+	return this.idvalue;
+}
+
+Bid.prototype.setId = function(idvalue) {
+	this.idvalue = idvalue;
 }
 
 Bid.prototype.getDateString = function() {

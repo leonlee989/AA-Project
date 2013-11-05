@@ -11,23 +11,23 @@ var conn_conf = {
 	port : 3306,
 	user : 'root',
 	password : 'root',
-	database : 'exchange'
+	database : 'exchangemel'
 }
 
 var conn_conf_Master = {
 	host : '192.168.0.2',
 	port : 7000,
 	user : 'root',
-	password : '',
-	database : 'exchange'
+	password : 'root',
+	database : 'exchangemel'
 }
 
 var conn_conf_Slave = {
 	host : '192.168.0.3',
 	port : 7000,
 	user : 'root',
-	password : '',
-	database : 'exchange'
+	password : 'root',
+	database : 'exchangemel'
 }
 
 var poolCluster = undefined;
@@ -45,7 +45,7 @@ DBBean.prototype.estab_connection = function() {
 	}
 }
 
-DBBean.prototype.executeSql = function(stringSQL, callback) {
+DBBean.prototype.executeSql = function(stringSQL, query, callback) {
 
 	if (poolCluster == undefined) {
 		this.estab_connection();
@@ -53,23 +53,22 @@ DBBean.prototype.executeSql = function(stringSQL, callback) {
 	
 	poolCluster.getConnection(function(err, connection) {
 		if (connection != null) {
-			var options = {sql: stringSQL, nestTables: true};
+			//var options = {sql: stringSQL, nestTables: true};
 			
-			connection.query(options, function(err, results) {
+			connection.query(stringSQL, query, function(err, results) {
+				
 				console.log("Executing SQL statement...\n" + stringSQL);
 				
 				if (err) {
+					console.log("An error has occured as shown below:");
 					console.log(err);
-					console.log("Error in retrieval of information...");
+					//console.log("Error in retrieval of information...");
 					callback(undefined);
 				} else {
 					// Data Found
-					console.log("Success in retrieval of information... " + JSON.stringify(results));
-					for (var i=0; i<results.length; i++) {
-						console.log(results[i]);
-					}
+					console.log("Successfully in calling stored procedure... " + JSON.stringify(results[0]));
 					
-					callback(results);
+					callback(results[0]);
 				}
 				
 				connection.release();
@@ -92,14 +91,21 @@ DBBean.prototype.executeUpdate = function(strSQL) {
 	
 	poolCluster.getConnection(function(err, connection) {
 		if (connection != null) {
-			connection.query(strSQL, function(err, results) {
-				console.log("Executing SQL statement...\n" + strSQL);
+			//var options = {sql: stringSQL, nestTables: true};
+			
+			connection.query(stringSQL, query, function(err, results) {
+				console.log("Executing SQL statement...\n" + stringSQL);
 				
 				if (err) {
+					console.log("An error has occured as shown below:");
 					console.log(err);
-					console.log("Error in executing sql...");
+					//console.log("Error in retrieval of information...");
+					callback(undefined);
 				} else {
-					console.log("Success in executing sql...");
+					// Data Found
+					console.log("Successfully in calling stored procedure... " + JSON.stringify(results[0]));
+					
+					callback(results[0]);
 				}
 				
 				connection.release();
@@ -110,7 +116,8 @@ DBBean.prototype.executeUpdate = function(strSQL) {
 	});
 	
 	poolCluster.on('remove', function (nodeId) {
-	  console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
+		console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
+		results('REMOVED NODE : ' + nodeId);
 	});
 }
 */

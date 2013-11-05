@@ -83,7 +83,7 @@ function ExchangeBean() {
 	// File Read
 	rs.once('data', function(data) {  
 		console.log( 'Reading data...' );  
-		console.log( data );  
+		//console.log( data );  
 		var value = data.split("\n");
 
 		value.forEach(function(matchedTransactions) {
@@ -97,7 +97,7 @@ function ExchangeBean() {
 					function (error, response, body) {
 						
 						if (!error && response.statusCode == 200) {
-							console.log(body);
+							//console.log(body);
 							module.renderResponse(body);
 						} else {
 							console.log("Connection Failed: Page cannot be loaded");		
@@ -111,7 +111,7 @@ function ExchangeBean() {
 		// Remove data from file
 		fs.writeFile(module.MATCH_LOG_FILE, "", function(err) {
 			if (!err) {
-				console.log("Content is being removed from " + module.MATCH_LOG_FILE);
+				//console.log("Content is being removed from " + module.MATCH_LOG_FILE);
 			} else {
 				console.log("Error in removing the content");
 			}
@@ -301,7 +301,7 @@ ExchangeBean.prototype.logRejectedBuyOrder = function(bid) {
 		if(err) {
 			console.log(err);
 		} else {
-			console.log("The file was saved!");
+			//console.log("The file was saved!");
 		}
 	});
 }
@@ -315,7 +315,7 @@ ExchangeBean.prototype.logMatchedTransactions = function(transaction) {
 		if(err) {
 			console.log(err);
 		} else {
-			console.log("The file was saved!");
+			//console.log("The file was saved!");
 		}
 	});
 	
@@ -359,7 +359,7 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 		db.executeSql("select count(*) as total from ask where stockName='" + newBid.getStock() + "'", function(results) {
 			
 			if (results[0].total == 0) {
-				console.log("No transaction is matched");
+				//console.log("No transaction is matched");
 				callback(true);
 				return;
 			}
@@ -400,7 +400,7 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 						module.logMatchedTransactions(match);
 					}
 					
-					console.log("Transaction is matched");
+					//console.log("Transaction is matched");
 					callback(true); // this bid is acknowledged
 					return;
 				
@@ -425,7 +425,7 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk, callback) {
 	db.executeSql("select count(*) as total from bid where stockName='" + newAsk.getStock() + "'", function(results) {
 		
 		if (results[0].total == 0) {
-			console.log("No transaction is matched");
+			//console.log("No transaction is matched");
 			//callback(true);
 			return; //true; // no unfulfilled asks of the same stock
 		}
@@ -467,7 +467,7 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk, callback) {
 				}
 			});
 			//callback(true);
-			console.log("Transaction is matched");
+			//console.log("Transaction is matched");
 			return;
 		});
 	});
