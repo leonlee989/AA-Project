@@ -135,9 +135,10 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock, callback) 
 	var cs = "call GET_FILTERED_BIDS(?)";
 	db.executeSql(cs, [stock], function(value) {
 		value.forEach(function(result) {
-			if (result.stockName == stock) {
-				returnString += JSON.stringify(result);
-			}			
+			returnString += "stock: " + result.stockName + 
+				", price: " + result.price + 
+				", userId: " + result.userID + 
+				", date: " + (new Date(result.bidDate)).toLocaleString() + "<br/>";
 		});
 		
 		callback(returnString);
@@ -153,9 +154,10 @@ ExchangeBean.prototype.getUnfulfilledBidsForDisplay = function(stock, callback) 
 	var cs = "call GET_FILTERED_ASKS(?)";
 	db.executeSql(cs, [stock], function(value) {
 		value.forEach(function(result) {
-			if (result.stockName == stock) {
-				returnString += JSON.stringify(result);
-			}			
+			returnString += "stock: " + result.stockName + 
+				", price: " + result.price + 
+				", userId: " + result.userID + 
+				", date: " + (new Date(result.askDate)).toLocaleString() + "<br/>";		
 		});
 		
 		callback(returnString);

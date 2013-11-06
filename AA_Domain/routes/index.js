@@ -173,8 +173,8 @@ exports.viewOrders = function(req, res) {
 				exchangeBean.getUnfulfilledBidsForDisplay("ntu", function(ntubids) {
 					
 					exchangeBean.getUnfulfilledAsks("smu", function(smuask) {
-						exchangeBean.getUnfulfilledAsks("smu", function(nusask) {
-							exchangeBean.getUnfulfilledAsks("smu", function(ntuask) {
+						exchangeBean.getUnfulfilledAsks("nus", function(nusask) {
+							exchangeBean.getUnfulfilledAsks("ntu", function(ntuask) {
 				
 								res.render('viewOrders.ejs', { 
 

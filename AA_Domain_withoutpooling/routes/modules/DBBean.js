@@ -2,10 +2,11 @@ var mysql = require("mysql");
 
 // Connection configuration
 var conn_conf = {
-	host : 'localhost',
+	host : '192.168.1.8',
 	port : 7000,
 	user : 'root',
-	password : '',
+	//password : '',
+	password : 'obscure',
 	database : 'exchange'
 }
 
@@ -22,7 +23,7 @@ DBBean.prototype.estab_connection = function() {
 		if (!err) {
 			console.log("Connected to " + conn_conf.database + " on " + conn_conf.host);			
 		} else {
-			console.log("Connection Failed, unable to connection to DB");
+			console.log("Connection Failed, unable to connection to DB : " + err);
 		}
 	});
 
