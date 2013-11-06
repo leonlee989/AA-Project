@@ -14,7 +14,7 @@ function ExchangeBean() {
 	 db.estab_connection();
 	 
 	db.executeSql("SET SQL_SAFE_UPDATES=0", [], function(value) {
-		console.log(value);
+		//console.log(value);
 	});
 	 
 	// location of log files - change if necessary
@@ -76,7 +76,7 @@ function ExchangeBean() {
 	// File Read
 	rs.once('data', function(data) {  
 		console.log( 'Reading data...' );  
-		console.log( data );  
+		//console.log( data );  
 		var value = data.split("\n");
 
 		value.forEach(function(matchedTransactions) {
@@ -230,7 +230,7 @@ ExchangeBean.prototype.getCreditRemaining = function(buyerUserId, callback) {
 		if (creditObject != undefined && creditObject != "") {
 			callback(creditObject.credit_limit);
 		} else {
-			console.log("Inserting " + buyerUserId + " and " + module.DAILY_CREDIT_LIMIT_FOR_BUYERS);
+			//console.log("Inserting " + buyerUserId + " and " + module.DAILY_CREDIT_LIMIT_FOR_BUYERS);
 			var cs2 = "call INSERT_USER_CREDIT(?,?)";
 			db.executeSql(cs2, [buyerUserId, module.DAILY_CREDIT_LIMIT_FOR_BUYERS], function(value) {});
 			callback(module.DAILY_CREDIT_LIMIT_FOR_BUYERS);
@@ -255,7 +255,7 @@ ExchangeBean.prototype.validateCreditLimit = function(bid, callback) {
 			callback(false);
 		} else {
 			// it's ok - adjust credit limit and return true
-			console.log("Update credit limit for " + bid.getUserId() + " at the price of " + newRemainingCredit);
+			//console.log("Update credit limit for " + bid.getUserId() + " at the price of " + newRemainingCredit);
 			var cs = "call UPDATE_CREDIT_LIMIT(?,?)";
 			db.executeSql(cs, [newRemainingCredit, bid.getUserId()], function(value) {});
 			callback(true);
@@ -304,7 +304,7 @@ ExchangeBean.prototype.getAllCreditRemainingForDisplay = function(callback) {
 	
 	var cs = "call GET_ALL_CREDIT()";
 	db.executeSql(cs, [], function(results) {
-		console.log(JSON.stringify(results));
+		//console.log(JSON.stringify(results));
 		results.forEach(function(value) {
 			returnString += "<tr><td>" + value.userid + "</td><td>" + value.credit_limit + "</td></tr>";
 		});
@@ -319,7 +319,7 @@ ExchangeBean.prototype.getAllCreditRemainingForDisplay = function(callback) {
 ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 	var module = this;
 	var TOTAL_COUNTER = 2;
-	counter = 0;
+	var counter = 0;
 	
 	var highestBidCompare = undefined;
 	var lowestAskCompare = undefined;
@@ -349,13 +349,14 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 					} else {
 						lowestAskCompare = lowestAsk;
 						counter++;
-						console.log(counter + ". " + lowestAskCompare.getUserId());
+						//console.log(counter + ". " + lowestAskCompare.getUserId());
 						if (counter == TOTAL_COUNTER) {
 							// this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask		
 							var match = processBidMatch(highestBidCompare, lowestAskCompare, highestBidCompare.getDate(), lowestAskCompare.getPrice());
 							if (match) {
 								module.logMatchedTransactions(match);
 							}
+							
 							callback(true); // this bid is acknowledged
 							return;
 						}
@@ -364,7 +365,7 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 				
 				// step 2: identify the current/highest bid in unfulfilledBids of the same stock
 				module.getHighestBid(newBidStockName, function(highestBid) {
-
+					
 					highestBidCompare = highestBid;
 					counter++;
 					if (counter == TOTAL_COUNTER) {
@@ -373,10 +374,10 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 						if (match) {
 							module.logMatchedTransactions(match);
 						}
+						
 						callback(true); // this bid is acknowledged
 						return;
 					}
-					
 				});
 			}
 		});
@@ -385,17 +386,17 @@ ExchangeBean.prototype.placeNewBidAndAttemptMatch = function(newBid, callback) {
 
 // call this method immediatley when a new ask (selling order) comes in
 ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk) {
-
+	
 	var module = this;
 	var TOTAL_COUNTER = 2;
-	counter = 0;
+	var counter = 0;
 	
 	var highestBidCompare = undefined;
 	var lowestAskCompare = undefined;
 	var newAskStockName = newAsk.getStock();
 	
 	insertAsk(newAsk, function(value) {
-		console.log(value);
+		//console.log(value);
 		if (!value) {
 			console.log("An error has occurred in inserting ask");
 			return;
@@ -416,7 +417,7 @@ ExchangeBean.prototype.placeNewAskAndAttemptMatch = function(newAsk) {
 						if (match != undefined) {
 							module.logMatchedTransactions(match);
 						}
-						
+						counter = 0;
 						return;
 					}
 				}
@@ -446,25 +447,27 @@ function processBidMatch(highestBid, lowestAsk, time, price) {
 	// A match happens if the lowest ask is <= highest bid
 	if (lowestAsk.getPrice() <= highestBid.getPrice()) {
 		// a match is found		
-		deleteBid(highestBid, function(value) {});
-		deleteAsk(lowestAsk, function(value){});
-		
 		// this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
 		var match = new matchedTransactionModule.MatchedTransaction(highestBid, lowestAsk, time, price);
-		 
-		var cs_insertTransaction = "call INSERT_MATCHED_TRANSACTION(?,?,?,?,?,?,?,?,?,?,?)";
-		db.executeSql(cs_insertTransaction, [highestBid.getPrice(), highestBid.getUserId(), convertToTimeStamp(highestBid.getDate()), 
-			lowestAsk.getPrice(), lowestAsk.getUserId(), convertToTimeStamp(lowestAsk.getDate()), convertToTimeStamp(match.getDate()), 
-			match.getPrice(), match.getStock(), lowestAsk.getId(), highestBid.getId()], function(err) {
-				console.log(JSON.stringify(err));
-			});
 		
+		db.executeSql_Transaction(
+			"call INSERT_MATCHED_TRANSACTION(?,?,?,?,?,?,?,?,?,?,?)", 
+			[highestBid.getPrice(), highestBid.getUserId(), convertToTimeStamp(highestBid.getDate()), 
+			lowestAsk.getPrice(), lowestAsk.getUserId(), convertToTimeStamp(lowestAsk.getDate()), convertToTimeStamp(match.getDate()), 
+			match.getPrice(), match.getStock(), lowestAsk.getId(), highestBid.getId()], 
+			"call DELETE_BID(?,?,?,?)", 
+			[highestBid.getStock(), highestBid.getPrice(), highestBid.getUserId(), convertToTimeStamp(highestBid.getDate())], 
+			"call DELETE_ASK(?,?,?,?)", 
+			[lowestAsk.getStock(), lowestAsk.getPrice(), lowestAsk.getUserId(), convertToTimeStamp(lowestAsk.getDate())], function(completed) {
+				if (!completed) {
+					throw new Error("Transaction cannot be performed.");
+				}
+			}
+		);
+				
 		// to be included here: inform Back Office Server of match
 		// to be done in v1.0
 		updateLatestPrice(match.getStock(), match.getPrice());
-		
-		console.log("Transaction is matched");
-		
 		return match;
 	}
 				
@@ -491,10 +494,10 @@ ExchangeBean.prototype.getLatestPrice = function(stock, callback) {
 function updateLatestPrice(stock, price) {
 	var cs = "call UPDATE_STOCK_PRICE(?,?)";
 	db.executeSql(cs, [price, stock], function(err) {
-		if (err) {
+		if (!err) {
 			console.log("Unable to update " + stock + " with the price of " + price);
 		} else {
-			console.log("Stock updated");
+			//console.log("Stock updated");
 		}
 	});
 }

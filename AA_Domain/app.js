@@ -11,7 +11,7 @@ var routes = require('./routes');
 var app = express();
 
 // all environments
-app.set('port', process.env.PORT || 3002, "127.0.0.1");
+app.set('port', process.env.PORT || 3000, "127.0.0.1");
 
 // config
 app.set('views', __dirname + '/views');

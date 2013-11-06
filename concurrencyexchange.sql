@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS exchangemel;
-CREATE DATABASE exchangemel;
-USE exchangemel;
+DROP DATABASE IF EXISTS exchange;
+CREATE DATABASE exchange;
+USE exchange;
 
 DROP TABLE IF EXISTS credit;
 CREATE TABLE credit (
@@ -8,7 +8,7 @@ CREATE TABLE credit (
 	credit_limit int not null,
 	
   PRIMARY KEY (userid)
-) ; 
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS stock;
 CREATE TABLE stock (
@@ -16,7 +16,7 @@ CREATE TABLE stock (
 	price int not null,
 	
   PRIMARY KEY (stockName)
-) ; 
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS ask;
 CREATE TABLE ask (
@@ -27,7 +27,7 @@ CREATE TABLE ask (
 	askDate TimeStamp not null,
 	
   PRIMARY KEY (id)
-) ; 
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS bid;
 CREATE TABLE bid (
@@ -38,7 +38,7 @@ CREATE TABLE bid (
 	bidDate TimeStamp not null,
 	
   PRIMARY KEY (id)
-) ; 
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS matchedTransactionDB;
 CREATE TABLE matchedTransactionDB (
@@ -56,7 +56,7 @@ CREATE TABLE matchedTransactionDB (
 	bidID int,
 	
   PRIMARY KEY (id)
-) ; 
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS rejectedLog;
 CREATE TABLE rejectedLog (
@@ -64,7 +64,7 @@ CREATE TABLE rejectedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
-) ;
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS matchedLog;
 CREATE TABLE matchedLog (
@@ -72,7 +72,7 @@ CREATE TABLE matchedLog (
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
-) ;
+) ENGINE=NDBCLUSTER;
 
 DROP TABLE IF EXISTS backOfficeLog;
 CREATE TABLE backOfficeLog(
@@ -80,7 +80,7 @@ CREATE TABLE backOfficeLog(
 	logStatement varchar(500),
 	
 	PRIMARY KEY(id)
-);
+) ENGINE=NDBCLUSTER;
 
 ALTER TABLE ask ADD INDEX askPriceDate(price,askDate);
 ALTER TABLE bid ADD INDEX bidPriceDate(price,bidDate);
