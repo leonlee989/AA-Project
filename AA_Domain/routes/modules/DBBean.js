@@ -2,6 +2,8 @@ var mysql = require("mysql");
 var queues = require('mysql-queues');
 const DEBUG = true;
 
+var numberOfTries=0;
+	
 // Connection configuration
 var clusterConfig = {
   removeNodeErrorCount: 3, // Remove the node immediately when connection fails.
@@ -9,7 +11,7 @@ var clusterConfig = {
 };
 
 var conn_conf = {
-	host : 'localhost',
+	host : '192.168.1.20',
 	port : 7000,
 	user : 'root',
 	password : '',
@@ -20,12 +22,12 @@ var conn_conf_Master = {
 	host : '192.168.1.8',
 	port : 7000,
 	user : 'root',
-	password : '',
+	password : 'obscure',
 	database : 'exchange'
 }
 
 var conn_conf_Slave = {
-	host : '192.168.0.2',
+	host : '192.168.1.2',
 	port : 7000,
 	user : 'root',
 	password : '',
@@ -48,7 +50,7 @@ DBBean.prototype.estab_connection = function() {
 }
 
 DBBean.prototype.executeSql = function(stringSQL, query, callback) {
-
+	var module = this;
 	if (poolCluster == undefined) {
 		this.estab_connection();
 	}
@@ -62,21 +64,31 @@ DBBean.prototype.executeSql = function(stringSQL, query, callback) {
 					//console.log("Executing SQL statement...\n" + stringSQL);
 					
 					if (err) {
-						console.log("An error has occured as shown below:");
-						console.log(err);
+						//console.log("An error has occured as shown below:");
+						//console.log(err);
 						
-						//console.log("Error in retrieval of information...");
-						callback(undefined);
+						if (numberOfTries != 3) {
+							numberOfTries++;
+							module.executeSql(stringSQL, query, function(value) {
+								callback(value);
+							});
+						} else {
+							//console.log("Error in retrieval of information...");
+							numberOfTries=0;
+							callback(undefined);
+						}
 					} else {
 						// Data Found
 						//console.log("Successfully in calling stored procedure... " + JSON.stringify(results[0]));
-						
+						numberOfTries=0;
 						callback(results[0]);
 					}
 					
 				});
 			} finally {
-				connection.release();
+				if (connection != null) {
+					connection.release();
+				}
 			}
 		} else {
 			console.log("Connection failed");
@@ -94,9 +106,6 @@ DBBean.prototype.executeSql_Transaction = function(stringSQL1, query1, stringSQL
 	if (poolCluster == undefined) {
 		this.estab_connection();
 	}
-	var count = 0;
-	var TOTAL_COUNT=2;
-	var numberOfTries=0;
 	
 	poolCluster.getConnection(function(err, connection) {
 		if (connection != null) {
@@ -113,6 +122,7 @@ DBBean.prototype.executeSql_Transaction = function(stringSQL1, query1, stringSQL
 						trans.rollback();
 						module.executeSql_Transaction(stringSQL1, query1, stringSQL2, query2, stringSQL3, query3);
 					} else {
+						numberOfTries=0;
 						callback(false);
 					}
 				}
@@ -138,7 +148,10 @@ DBBean.prototype.executeSql_Transaction = function(stringSQL1, query1, stringSQL
 				connection.query("FINALLY");
 				
 			} finally {
-				connection.release();
+				console.log("--------------------------------------------------------->" + connection);
+				if (connection != null) {
+					connection.release();
+				}
 			}
 		} else {
 			console.log("Connection failed");
@@ -148,10 +161,6 @@ DBBean.prototype.executeSql_Transaction = function(stringSQL1, query1, stringSQL
 	poolCluster.on('remove', function (nodeId) {
 		console.log('REMOVED NODE : ' + nodeId); // nodeId = removed node 
 	});
-}
-
-DBBean.prototype.close = function() {
-	poolCluster.end();
 }
 
 module.exports.DBBean = DBBean;
