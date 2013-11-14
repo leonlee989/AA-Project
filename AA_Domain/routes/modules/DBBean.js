@@ -148,7 +148,7 @@ DBBean.prototype.executeSql_Transaction = function(stringSQL1, query1, stringSQL
 				connection.query("FINALLY");
 				
 			} finally {
-				console.log("--------------------------------------------------------->" + connection);
+				//console.log("--------------------------------------------------------->" + connection);
 				if (connection != null) {
 					connection.release();
 				}
